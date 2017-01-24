@@ -83,13 +83,27 @@ void Draw(std::vector<Triangle>& model) {
 
 //Returns colour of nearest intersecting triangle
 glm::vec3 Trace(float x, float y, std::vector<Triangle>& triangles) {
-	float fov = 30;
+	float fov = 80;
 	float aspect_ratio = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
-	float angle = tan(M_PI * fov / 360);
 
-	float focalLength = -40.0f;
-	glm::vec3 cameraPos(0, 0, 0);
-	glm::vec3 direction(x-(float)SCREEN_WIDTH/2, y-(float)SCREEN_HEIGHT/2, focalLength);
+
+
+
+	float focalLength = 1.0f;
+	glm::vec3 cameraPos(0, 0, -2.0);
+	//glm::vec3 direction(x-(float)SCREEN_WIDTH/2, y-(float)SCREEN_HEIGHT/2, focalLength);
+
+
+	/*
+		- Loosely based off of https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-generating-camera-rays/generating-camera-rays
+		- Same principle as Pinhole, except re-scaled such that the xScr, yScr are in camera-space.
+	
+	*/
+	float fovFactor = tan(M_PI * (fov*0.5) / 180);
+	float xScr = (2 * (x-SCREEN_WIDTH/2) / (float)(SCREEN_WIDTH)) * aspect_ratio * fovFactor;
+	float yScr = (2 * (y-SCREEN_HEIGHT/2) / (float)(SCREEN_HEIGHT)) * fovFactor;
+	glm::vec3 direction(xScr, yScr, focalLength);
+	direction = glm::normalize(direction);
 
 	Ray ray(cameraPos, direction);
 	Intersection closest_intersect;

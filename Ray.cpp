@@ -41,16 +41,16 @@ bool Ray::closestIntersection(const std::vector<Triangle>& triangles, Intersecti
 			A1[1] = b;
 			float detA1 = glm::determinant(A1);
 			float u = detA1 / detA;
-			if (u <= 0 || u >= 1) continue;
+			if (u < 0 || u > 1) continue;
 
 			glm::mat3 A2 = A;
 			A2[2] = b;
 			float detA2 = glm::determinant(A2);
 			float v = detA2 / detA;
-			if (v <= 0 || v >= 1) continue;
+			if (v < 0 || v > 1) continue;
 
 			//Check if intersection with triangle actually occurs
-			if (u + v < 1) {
+			if (u + v <= 1) {
 				glm::vec3 intersect = triangle.v0 + u*triangle.e1() + v*triangle.e2();
 				float distance = glm::distance(origin, intersect);
 				if (distance < min_dist) {
