@@ -2,6 +2,8 @@
 #include <Windows.h>
 #include <vector>
 #include <glm/glm.hpp>
+#define _USE_MATH_DEFINES
+#include <math.h>
 #include <SDL.h>
 #undef main
 #include "Raytracer/SDLauxiliary.h"
@@ -31,7 +33,8 @@ int t;
 /* FUNCTIONS                                                                   */
 
 void Update();
-void Draw();
+void Draw(std::vector<Triangle>& model);
+glm::vec3 Trace(float x, float y, std::vector<Triangle>& triangles);
 
 int main(int argc, char** argv) {
 	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
@@ -43,7 +46,7 @@ int main(int argc, char** argv) {
 	while( NoQuitMessageSDL() )
 	{
 		Update();
-		Draw();
+		Draw(model);
 	}
 
 	SDL_SaveBMP( screen, "screenshot.bmp" );
@@ -58,7 +61,7 @@ void Update() {
 	std::cout << "Render time: " << dt << " ms." << std::endl;
 }
 
-void Draw() {
+void Draw(std::vector<Triangle>& model) {
 	if( SDL_MUSTLOCK(screen) )
 		SDL_LockSurface(screen);
 
@@ -66,7 +69,8 @@ void Draw() {
 	{
 		for( int x=0; x<SCREEN_WIDTH; ++x )
 		{
-			glm::vec3 color( 1.0, 0.0, 0.0 );
+			//glm::vec3 color( 1.0, 0.0, 0.0 );
+			glm::vec3 color = Trace(x, y, model);
 			PutPixelSDL( screen, x, y, color );
 		}
 	}
@@ -75,4 +79,22 @@ void Draw() {
 		SDL_UnlockSurface(screen);
 
 	SDL_UpdateRect( screen, 0, 0, 0, 0 );
+}
+
+//Returns colour of nearest intersecting triangle
+glm::vec3 Trace(float x, float y, std::vector<Triangle>& triangles) {
+	float fov = 30;
+	float aspect_ratio = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
+	float angle = tan(M_PI * fov / 360);
+
+	float focalLength = -40.0f;
+	glm::vec3 cameraPos(0, 0, 0);
+	glm::vec3 direction(x-(float)SCREEN_WIDTH/2, y-(float)SCREEN_HEIGHT/2, focalLength);
+
+	Ray ray(cameraPos, direction);
+	Intersection closest_intersect;
+	if (ray.closestIntersection(triangles, closest_intersect)) {
+		return triangles[closest_intersect.index].color;
+	}
+	return glm::vec3(0.0f, 0.0f, 0.0f);
 }

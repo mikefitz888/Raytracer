@@ -1,8 +1,10 @@
-﻿  Ray.cpp
+﻿  Raytracer.cpp
+..\Raytracer.cpp(73): warning C4244: 'argument': conversion from 'int' to 'float', possible loss of data
+..\Raytracer.cpp(88): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
   Generating code
-  0 of 114 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
+  1 of 146 functions ( 0.7%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    7 functions had inline decision re-evaluated but remain unchanged
+    1 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   Raytracer.vcxproj -> C:\Users\Michael\Documents\Graphics\Raytracer\Release\Raytracer.exe
   Raytracer.vcxproj -> C:\Users\Michael\Documents\Graphics\Raytracer\Release\Raytracer.pdb (Full PDB)

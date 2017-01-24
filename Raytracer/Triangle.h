@@ -41,6 +41,7 @@ struct Intersection {
 	float distance;
 	int index;
 	Intersection(glm::vec3 pos, float dis, int ind) : position(pos), distance(dis), index(ind) {}
+	Intersection(){}
 };
 
 #endif // !TRIANGLE_H
