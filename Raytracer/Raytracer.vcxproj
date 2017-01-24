@@ -120,12 +120,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Ray.cpp" />
     <ClCompile Include="..\Raytracer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Raytracer.h" />
     <ClInclude Include="SDLauxiliary.h" />
     <ClInclude Include="TestModel.h" />
+    <ClInclude Include="Triangle.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

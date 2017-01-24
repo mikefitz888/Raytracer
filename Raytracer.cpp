@@ -4,10 +4,10 @@
 #include <glm/glm.hpp>
 #include <SDL.h>
 #undef main
-
-
 #include "Raytracer/SDLauxiliary.h"
+
 #include "Raytracer/TestModel.h"
+#include "Raytracer/Raytracer.h"
 
 //VS14 FIX
 FILE _iob[] = { *stdin, *stdout, *stderr };
