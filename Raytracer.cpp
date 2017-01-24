@@ -108,7 +108,30 @@ glm::vec3 Trace(float x, float y, std::vector<Triangle>& triangles) {
 	Ray ray(cameraPos, direction);
 	Intersection closest_intersect;
 	if (ray.closestIntersection(triangles, closest_intersect)) {
-		return triangles[closest_intersect.index].color;
+
+
+		// SIMPLE LIGHTING
+		const glm::vec3 light_position(0.0, -0.75, 0.0);
+		glm::vec3 baseColour = triangles[closest_intersect.index].color;
+		glm::vec3 dir_to_light = light_position - closest_intersect.position;
+		float light_distance = glm::length(dir_to_light);
+		float light_factor = 1.0-glm::clamp((light_distance / 2.5), 0.0, 1.0);
+		light_factor = glm::clamp((double)light_factor, 0.25, 1.0)*2.5;
+
+		// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
+		Ray lightRay(closest_intersect.position+dir_to_light*0.01f, glm::normalize(dir_to_light));
+		Intersection closest_intersect2;
+
+		// If the ray intersects with something, and the distance to the intersecting object is closer than 
+		if (lightRay.closestIntersection(triangles, closest_intersect2)) {
+			if (closest_intersect2.distance < light_distance) {
+				light_factor = 0.2;
+			}
+		}
+
+
+
+		return baseColour*light_factor;
 	}
 	return glm::vec3(0.0f, 0.0f, 0.0f);
 }
