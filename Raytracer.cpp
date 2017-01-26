@@ -68,7 +68,7 @@ void Draw(std::vector<Triangle>& model) {
 	if( SDL_MUSTLOCK(screen) )
 		SDL_LockSurface(screen);
 
-	float DOF_focus_length = 0.75f;
+	float DOF_focus_length = 2.750f;
 
 	glm::vec3 color;
 	glm::vec3 cameraPos(0, 0, -2.0);
@@ -81,7 +81,7 @@ void Draw(std::vector<Triangle>& model) {
 	*/
 	float fovFactor = tan(M_PI * (fov*0.5) / 180);
 
-	float x_rotation = 0.0f;
+	float x_rotation = 0.5f;
 	float y_rotation = 0.0f;
 
 	for( int y=0; y<SCREEN_HEIGHT; ++y )
@@ -94,19 +94,27 @@ void Draw(std::vector<Triangle>& model) {
 			direction = glm::normalize(direction);
 			//glm::vec3 color( 1.0, 0.0, 0.0 );
 			if (_DOF_ENABLE_) {
+				glm::vec3 color_buffer(0.0f, 0.0f, 0.0f);
 				//Take multiple samples with camera rotated about focus point for DOF. TODO: modify Trace() to accept camera transformations (as mat4)
+				int samples = 0;
+				for (float xr = -0.02f; xr <= 0.02f; xr += 0.01f) {
+					for (float yr = -0.02f; yr <= 0.02f; yr += 0.01f) {
+						samples++;
+						glm::vec3 focus_point = cameraPos + glm::normalize(glm::vec3(0, 0, focalLength)) * glm::vec3(DOF_focus_length);
+						glm::vec3 cameraClone(cameraPos);
+						cameraClone -= focus_point; //translate such that focus_point is origin
+						cameraClone = glm::rotateX(cameraClone, xr); //rotation in X
+						cameraClone = glm::rotateY(cameraClone, yr); //rotation in Y
+						//For direction vector: give same rotation as camera
+						direction = glm::rotateX(direction, xr);
+						direction = glm::rotateY(direction, yr);
+
+						cameraClone += focus_point; //undo translation, effect is camera has rotated about focus_point
+						color_buffer += Trace(xScr, yScr, model, cameraClone, direction);
+					}
+				}
 				
-				glm::vec3 focus_point = cameraPos + glm::normalize(glm::vec3(0, 0, focalLength)) * glm::vec3(DOF_focus_length);
-				cameraPos -= focus_point; //translate such that focus_point is origin
-				cameraPos = glm::rotateX(cameraPos, x_rotation); //rotation in X
-				cameraPos = glm::rotateY(cameraPos, y_rotation); //rotation in Y
-				//For direction vector: give same rotation as camera
-				direction = glm::rotateX(direction, x_rotation);
-				direction = glm::rotateY(direction, y_rotation);
-
-				cameraPos += focus_point; //undo translation, effect is camera has rotated about focus_point
-
-				color = Trace(x, y, model, cameraPos, direction);
+				color = color_buffer / glm::vec3((float)samples);
 			}
 			else {
 				color = Trace(x, y, model, cameraPos, direction);
