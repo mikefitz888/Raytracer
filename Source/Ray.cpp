@@ -1,5 +1,5 @@
-#include "Raytracer/Raytracer.h"
-#include "Raytracer/Triangle.h"
+#include "../Include/Raytracer.h"
+#include "../Include/Triangle.h"
 
 glm::vec3 Ray::getIntersection(Triangle triangle) {
 	//Intersection = t, u, v

@@ -7,10 +7,10 @@
 #include <math.h>
 #include <SDL.h>
 #undef main
-#include "Raytracer/SDLauxiliary.h"
+#include "../Include/SDLauxiliary.h"
 
-#include "Raytracer/TestModel.h"
-#include "Raytracer/Raytracer.h"
+#include "../Include/TestModel.h"
+#include "../Include/Raytracer.h"
 
 #define _DOF_ENABLE_ true
 
