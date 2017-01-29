@@ -11,6 +11,7 @@
 
 #include "../Include/TestModel.h"
 #include "../Include/Raytracer.h"
+#include "../Include/ModelLoader.h"
 
 #define _DOF_ENABLE_ true
 
@@ -40,7 +41,12 @@ void Draw(std::vector<Triangle>& model);
 glm::vec3 Trace(float x, float y, std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction);
 
 int main(int argc, char** argv) {
-	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
+	std::cout << "wooowowowo" << std::endl;
+	model::Model model("../model.txt");
+	int x;
+	std::cin >> x;
+	return 0;
+	/*screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
 	t = SDL_GetTicks();	// Set start value for timer.
 
 	std::vector<Triangle> model = std::vector<Triangle>();
@@ -53,7 +59,7 @@ int main(int argc, char** argv) {
 	}
 
 	SDL_SaveBMP( screen, "screenshot.bmp" );
-	return 0;
+	return 0;*/
 }
 
 void Update() {

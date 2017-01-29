@@ -14,7 +14,7 @@ std::string trim(const std::string& str, const std::string& whitespace = " \t\n\
 
 namespace model {
 	Model::Model(std::string file_name) {
-		std::string token = nullptr;
+		std::string token;
 		
 		std::ifstream file;
 		file.open(file_name);
@@ -28,7 +28,7 @@ namespace model {
 				
 				//Skip comments
 				if (token[0] == '#') continue;
-				if (token == "v") parseVertex(line);
+				if (token == "v") parseVertex(stream);
 			}
 			file.close();
 		}
@@ -37,14 +37,19 @@ namespace model {
 		}
 	}
 
-	void Model::parseVertex(std::string vertex_line) {
+	//Tested. Functioning correctly.
+	void Model::parseVertex(std::istringstream& vertex) {
 		float x, y, z, w;
-		std::istringstream vertex_stream(vertex_line);
-		vertex_stream >> x >> y >> z >> w;
-		std::cout << x << std::endl;
-		std::cout << y << std::endl;
-		std::cout << z << std::endl;
-		std::cout << w << std::endl;
+		vertex >> x >> y >> z;
+		//if (!(vertex >> w)) w = 1.0;
+		vertices.push_back(glm::vec3(x, y, z));
+	}
+
+	void Model::parseUV(std::istringstream& UV) {
+		float u, v, w;
+		UV >> u >> v;
+		//if (!(vertex >> w)) w = 1.0;
+		uvs.push_back(glm::vec2(u, v));
 	}
 
 	Model& loadModelFromFile(std::string file_name) {

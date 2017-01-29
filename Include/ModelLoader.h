@@ -10,11 +10,12 @@
 namespace model {
 	class Model {
 		std::vector<unsigned int> vertexIndices, uvIndices, normalIndices;
-		std::vector<glm::vec3> temp_vertices, temp_normals;
-		std::vector<glm::vec2> temp_uvs;
+		std::vector<glm::vec3> vertices, normals;
+		std::vector<glm::vec2> uvs;
 
 	private:
-		void parseVertex(std::string vertex_stream);
+		void parseVertex(std::istringstream& vertex);
+		void parseUV(std::istringstream& UV);
 	public:
 		Model(std::string file_name);
 	};
