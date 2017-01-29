@@ -13,7 +13,7 @@
 #include "../Include/Raytracer.h"
 #include "../Include/ModelLoader.h"
 
-#define _DOF_ENABLE_ true
+#define _DOF_ENABLE_ false
 
 //VS14 FIX
 FILE _iob[] = { *stdin, *stdout, *stderr };
@@ -41,12 +41,12 @@ void Draw(std::vector<Triangle>& model);
 glm::vec3 Trace(float x, float y, std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction);
 
 int main(int argc, char** argv) {
-	std::cout << "wooowowowo" << std::endl;
+	/*std::cout << "wooowowowo" << std::endl;
 	model::Model model("../model.txt");
 	int x;
 	std::cin >> x;
-	return 0;
-	/*screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
+	return 0;*/
+	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
 	t = SDL_GetTicks();	// Set start value for timer.
 
 	std::vector<Triangle> model = std::vector<Triangle>();
@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
 	}
 
 	SDL_SaveBMP( screen, "screenshot.bmp" );
-	return 0;*/
+	return 0;
 }
 
 void Update() {
@@ -127,6 +127,7 @@ void Draw(std::vector<Triangle>& model) {
 			}
 			PutPixelSDL( screen, x, y, color );
 		}
+		printf("Progress: %f \n", ((float)y / (float)SCREEN_HEIGHT)*100.0f);
 	}
 
 	if( SDL_MUSTLOCK(screen) )
@@ -162,6 +163,22 @@ glm::vec3 Trace(float xScr, float yScr, std::vector<Triangle>& triangles, glm::v
 			}
 		}
 
+		// Calculate interpolated colour:
+		/*
+			TEMP (explanation of barycentric coordinates):
+				- Barycentric coordinates are an alternative way to represent a triangle as the combination of different weights.
+				How it boils down is that a coordinate on the surface of a triangle plane can be given a 3D barycentric coordinate (a, b, c). 
+
+				The position of that coordinate can then be converted to euclidean space by taking  pos = v0*a + v1*b + v2*c
+				- Conveniently, this allows us to use it to interpolate values. We can give each vertex a colour, and interpolate 
+				between them, we can also give each vertex a uv coordinate (mapping to texture space) and use this same
+				math to map each point within a triangle to the correct point in uv-space.
+		*/
+		glm::vec3 barycentric_coords = triangles[closest_intersect.index].calculateBarycentricCoordinates(closest_intersect.position);
+		
+		baseColour = glm::vec3(1.0, 0.0, 0.0)*barycentric_coords.x + glm::vec3(0.0, 1.0, 0.0)*barycentric_coords.y + glm::vec3(0.0, 0.0, 1.0)*barycentric_coords.z;
+
+		
 		return baseColour*light_factor;
 	}
 	return color_buffer;
