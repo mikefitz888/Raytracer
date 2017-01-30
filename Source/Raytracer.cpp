@@ -62,13 +62,13 @@ int main(int argc, char** argv) {
 void Update() {
 	// Compute frame time:
 	int t2 = SDL_GetTicks();
-	float dt = float(t2-t);
+	float dt = float(t2 - t);
 	t = t2;
 	std::cout << "Render time: " << dt << " ms." << std::endl;
 }
 
 void Draw(std::vector<Triangle>& model) {
-	if( SDL_MUSTLOCK(screen) )
+	if (SDL_MUSTLOCK(screen))
 		SDL_LockSurface(screen);
 
 	float DOF_focus_length = 2.750f;
@@ -87,10 +87,8 @@ void Draw(std::vector<Triangle>& model) {
 	float x_rotation = 0.5f;
 	float y_rotation = 0.0f;
 
-	for( int y=0; y<SCREEN_HEIGHT; ++y )
-	{
-		for( int x=0; x<SCREEN_WIDTH; ++x )
-		{
+	for (int y = 0; y<SCREEN_HEIGHT; ++y) {
+		for (int x = 0; x<SCREEN_WIDTH; ++x) {
 			float xScr = (2 * (x - SCREEN_WIDTH / 2) / (float)(SCREEN_WIDTH)) * aspect_ratio * fovFactor;
 			float yScr = (2 * (y - SCREEN_HEIGHT / 2) / (float)(SCREEN_HEIGHT)) * fovFactor;
 			glm::vec3 direction(xScr, yScr, focalLength);
@@ -108,7 +106,7 @@ void Draw(std::vector<Triangle>& model) {
 						cameraClone -= focus_point; //translate such that focus_point is origin
 						cameraClone = glm::rotateX(cameraClone, xr); //rotation in X
 						cameraClone = glm::rotateY(cameraClone, yr); //rotation in Y
-						//For direction vector: give same rotation as camera
+																	 //For direction vector: give same rotation as camera
 						direction = glm::rotateX(direction, xr);
 						direction = glm::rotateY(direction, yr);
 
@@ -116,20 +114,21 @@ void Draw(std::vector<Triangle>& model) {
 						color_buffer += Trace(xScr, yScr, model, cameraClone, direction);
 					}
 				}
-				
+
 				color = color_buffer / glm::vec3((float)samples);
 			}
 			else {
 				color = Trace(xScr, yScr, model, cameraPos, direction);
+
 			}
-			PutPixelSDL( screen, x, y, color );
+			PutPixelSDL(screen, x, y, color);
 		}
 	}
 
-	if( SDL_MUSTLOCK(screen) )
+	if (SDL_MUSTLOCK(screen))
 		SDL_UnlockSurface(screen);
 
-	SDL_UpdateRect( screen, 0, 0, 0, 0 );
+	SDL_UpdateRect(screen, 0, 0, 0, 0);
 }
 
 //Returns colour of nearest intersecting triangle
