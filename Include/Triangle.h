@@ -12,6 +12,12 @@ public:
 	glm::vec3 v2;
 	glm::vec3 normal;
 	glm::vec3 color;
+public:
+	inline glm::vec3 get_v0() { return v0; }
+	inline glm::vec3 get_v1() { return v1; }
+	inline glm::vec3 get_v2() { return v2; }
+	inline glm::vec3 get_normal() { return normal; }
+	inline glm::vec3 get_color() { return color; }
 
 	Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec3 color)
 		: v0(v0), v1(v1), v2(v2), color(color) {

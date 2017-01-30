@@ -26,9 +26,13 @@ namespace model {
 				std::istringstream stream(line);
 				stream >> token;
 				
-				//Skip comments
-				if (token[0] == '#') continue;
-				if (token == "v") parseVertex(stream);
+				if (token[0] == '#') continue; //Skip comments
+				else if (token == "v") parseVertex(stream);
+				else if (token == "vt") parseVertexTexture(stream);
+				else if (token == "vn") parseVertexNormal(stream);
+				else if (token == "f") parseFace(stream);
+				else printf("Token not yet supported: %s", token);
+
 			}
 			file.close();
 		}
@@ -41,16 +45,47 @@ namespace model {
 	void Model::parseVertex(std::istringstream& vertex) {
 		float x, y, z, w;
 		vertex >> x >> y >> z;
-		//if (!(vertex >> w)) w = 1.0;
+		//if (!(vertex >> w)) w = 1.0f;
 		vertices.push_back(glm::vec3(x, y, z));
 	}
 
-	void Model::parseUV(std::istringstream& UV) {
+	void Model::parseVertexTexture(std::istringstream& texture) {
 		float u, v, w;
-		UV >> u >> v;
-		//if (!(vertex >> w)) w = 1.0;
-		uvs.push_back(glm::vec2(u, v));
+		texture >> u >> v;
+		//if (!(texture >> w)) w = 0.0f;
+		vertex_textures.push_back(glm::vec2(u, v));
 	}
+
+	void Model::parseVertexNormal(std::istringstream& normal) {
+		//May not be normalized
+		float x, y, z;
+		normal >> x >> y >> z;
+		vertex_normals.push_back(glm::vec3(x, y, z));
+	}
+
+	void Model::parseFace(std::istringstream& face) {
+		// vertex/texture/normal
+		std::string v[3];
+		face >> v[0] >> v[1] >> v[2];
+		for (int i = 0; i < 3; i++) {
+			int vertex, texture, normal;
+			std::istringstream section(v[i]);
+			section >> vertex;
+			
+			if (section.peek() == '/') { 
+				section.ignore();
+				if (section.peek() != '/') section >> texture;
+			}
+			else continue;
+
+			if (section.peek() == '/') {
+				section.ignore();
+				section >> normal;
+			}
+			else continue;
+		}
+	}
+
 
 	Model& loadModelFromFile(std::string file_name) {
 

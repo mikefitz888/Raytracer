@@ -13,7 +13,7 @@
 #include "../Include/Raytracer.h"
 #include "../Include/ModelLoader.h"
 
-#define _DOF_ENABLE_ true
+#define _DOF_ENABLE_ false
 
 //VS14 FIX
 FILE _iob[] = { *stdin, *stdout, *stderr };
@@ -41,25 +41,22 @@ void Draw(std::vector<Triangle>& model);
 glm::vec3 Trace(float x, float y, std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction);
 
 int main(int argc, char** argv) {
-	std::cout << "wooowowowo" << std::endl;
-	model::Model model("../model.txt");
-	int x;
-	std::cin >> x;
-	return 0;
-	/*screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
+	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
 	t = SDL_GetTicks();	// Set start value for timer.
 
 	std::vector<Triangle> model = std::vector<Triangle>();
-	LoadTestModel(model);
+	model::Model cornell_box = model::Model();
+	LoadTestModel(model, cornell_box);
 
 	while( NoQuitMessageSDL() )
 	{
 		Update();
-		Draw(model);
+		Draw(cornell_box.getFaces());
+		//Draw(model);
 	}
 
 	SDL_SaveBMP( screen, "screenshot.bmp" );
-	return 0;*/
+	return 0;
 }
 
 void Update() {
@@ -77,7 +74,7 @@ void Draw(std::vector<Triangle>& model) {
 	float DOF_focus_length = 2.750f;
 
 	glm::vec3 color;
-	glm::vec3 cameraPos(0, 0, -2.0);
+	glm::vec3 cameraPos(250, 250, -500.0);
 	float fov = 80;
 	float aspect_ratio = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
 	float focalLength = 1.0f;
@@ -123,7 +120,7 @@ void Draw(std::vector<Triangle>& model) {
 				color = color_buffer / glm::vec3((float)samples);
 			}
 			else {
-				color = Trace(x, y, model, cameraPos, direction);
+				color = Trace(xScr, yScr, model, cameraPos, direction);
 			}
 			PutPixelSDL( screen, x, y, color );
 		}
@@ -162,7 +159,7 @@ glm::vec3 Trace(float xScr, float yScr, std::vector<Triangle>& triangles, glm::v
 			}
 		}
 
-		return baseColour*light_factor;
+		return baseColour;// *light_factor;
 	}
 	return color_buffer;
 }
