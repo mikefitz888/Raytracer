@@ -26,6 +26,7 @@ bool NoQuitMessageSDL();
 //     SDL_UnlockSurface( surface );
 // SDL_UpdateRect( surface, 0, 0, 0, 0 );
 void PutPixelSDL(SDL_Surface* surface, int x, int y, glm::vec3 color);
+glm::vec3 GetPixelSDL(SDL_Surface* surface, int x, int y);
 
 SDL_Surface* InitializeSDL(int width, int height, bool fullscreen) {
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0) {
@@ -71,6 +72,21 @@ void PutPixelSDL(SDL_Surface* surface, int x, int y, glm::vec3 color) {
 
 	Uint32* p = (Uint32*)surface->pixels + y*surface->pitch / 4 + x;
 	*p = SDL_MapRGB(surface->format, r, g, b);
+}
+
+glm::vec3 GetPixelSDL(SDL_Surface* surface, int x, int y) {
+	if (x < 0 || x >= surface->w || y < 0 || y >= surface->h )
+		return glm::vec3(0.0,0.0,0.0);
+
+	//std::cout << "IMAGE ( " << surface->w << ", " << surface->h << ")" << std::endl;
+	//std::cout << "PIXEL (" << x << "," << y << ")" << std::endl;
+	Uint32* p = (Uint32*)surface->pixels + y*surface->pitch + x;
+	Uint8 values[4];
+
+	SDL_GetRGB(*p, surface->format, &values[0], &values[1], &values[2]);
+	
+
+	return glm::vec3((float)values[0]/255.0, (float)values[1]/255.0, (float)values[2]/255.0);
 }
 
 #endif
