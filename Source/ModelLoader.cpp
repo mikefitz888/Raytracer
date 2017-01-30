@@ -1,3 +1,4 @@
+//#define DEBUG
 #include "../Include/ModelLoader.h"
 #define EQUAL(s1, s2) strcmp(s1, s2) == 0
 
@@ -31,9 +32,9 @@ namespace model {
 				else if (token == "vt") parseVertexTexture(stream);
 				else if (token == "vn") parseVertexNormal(stream);
 				else if (token == "f") parseFace(stream);
-				else if (token == "mtllib") parseMaterialLib(stream);
-				else if (token == "usemtl") parseUseMaterial(stream);
-				else printf("Token not yet supported: %s", token);
+				//else if (token == "mtllib") parseMaterialLib(stream);
+				//else if (token == "usemtl") parseUseMaterial(stream);
+				else std::cout << "Token not supported: '" << token << "'." << std::endl;
 
 			}
 			file.close();
@@ -48,21 +49,30 @@ namespace model {
 		float x, y, z, w;
 		vertex >> x >> y >> z;
 		//if (!(vertex >> w)) w = 1.0f;
-		vertices.push_back(glm::vec3(x, y, z));
+		vertices.emplace_back(x, y, z);
+#ifdef DEBUG
+		printf("Added vertex: (%f, %f, %f) \n", x, y, z);
+#endif
 	}
 
 	void Model::parseVertexTexture(std::istringstream& texture) {
 		float u, v, w;
 		texture >> u >> v;
 		//if (!(texture >> w)) w = 0.0f;
-		vertex_textures.push_back(glm::vec2(u, v));
+		vertex_textures.emplace_back(u, v);
+#ifdef DEBUG
+		printf("Added vertex_texture: (%f, %f) \n", u, v);
+#endif
 	}
 
 	void Model::parseVertexNormal(std::istringstream& normal) {
 		//May not be normalized
 		float x, y, z;
 		normal >> x >> y >> z;
-		vertex_normals.push_back(glm::vec3(x, y, z));
+		vertex_normals.emplace_back(x, y, z);
+#ifdef DEBUG
+		printf("Added vertex_normal: (%f, %f, %f) \n", x, y, z);
+#endif
 	}
 
 	void Model::parseFace(std::istringstream& face) {
@@ -87,9 +97,12 @@ namespace model {
 			}
 			else continue;
 			//Assume vertex/texture/normal are all available
-			vertexIndices.push_back(vertex);
-			textureIndices.push_back(texture);
-			normalIndices.push_back(normal);
+			vertexIndices.push_back(vertex-1);
+			textureIndices.push_back(texture-1);
+			normalIndices.push_back(normal-1);
+#ifdef DEBUG
+			printf("Added face: (%d, %d, %d) \n", vertex, texture, normal);
+#endif
 		}
 	}
 
@@ -104,8 +117,9 @@ namespace model {
 			while (std::getline(file, line)) {
 				std::istringstream stream(line);
 				stream >> token;
-				Material m = getActiveMaterial();
 
+				Material m;
+				if (materials.size()) { m = getActiveMaterial(); }
 				if(token[0] == '#') continue; //skip comments
 				else if (token == "newmtl") {
 					std::string name;

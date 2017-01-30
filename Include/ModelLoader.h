@@ -29,7 +29,7 @@ namespace model {
 		std::vector<unsigned int> vertexIndices, textureIndices, normalIndices;
 		std::vector<glm::vec3> vertices, vertex_normals;
 		std::vector<glm::vec2> vertex_textures; //UVs
-
+		std::vector<Triangle> triangles;
 		std::vector<int> mtl_map;
 
 	private:
@@ -48,10 +48,10 @@ namespace model {
 		}
 
 		//Convert to Triangles for raytracer
-		inline std::vector<Triangle>& getFaces() {
-			std::vector<Triangle> out = std::vector<Triangle>();
+		inline std::vector<Triangle>* getFaces() {
+			triangles.clear();
 			for(int i = 0; i < vertexIndices.size(); i+=3){
-				out.push_back(Triangle(
+				triangles.emplace_back(
 					vertices[vertexIndices[i]],
 					vertices[vertexIndices[i+1]],
 					vertices[vertexIndices[i+2]],
@@ -61,9 +61,9 @@ namespace model {
 					vertex_normals[normalIndices[i]],
 					vertex_normals[normalIndices[i+1]],
 					vertex_normals[normalIndices[i+2]]
-				));
+				);
 			}
-			return out;
+			return &triangles;
 		}
 	};
 }

@@ -7,17 +7,28 @@
 // Used to describe a triangular surface:
 class Triangle {
 public:
-	glm::vec3 v0;
-	glm::vec3 v1;
-	glm::vec3 v2;
+	//Vertices
+	glm::vec3 v0, v1, v2;
+
+	//Texture Coordinates
+	glm::vec2 uv0, uv1, uv2;
+
+	//Normals
+	glm::vec3 n0, n1, n2;
+
+	//Optional Parameters
+
 	glm::vec3 normal;
 	glm::vec3 color;
 
-	glm::vec2 uv0, uv1, uv2;
+	
 
 	inline Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2,
 					glm::vec2 uv0, glm::vec2 uv1, glm::vec2 uv2,
-					glm::vec3 n0, glm::vec3 n1, glm::vec3 n2){}
+					glm::vec3 n0, glm::vec3 n1, glm::vec3 n2) :
+					v0(v0), v1(v1), v2(v2), uv0(uv0), uv1(uv1), uv2(uv2), n0(n0), n1(n1), n2(n2) {
+		ComputeNormal();
+	}
 
 	Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec3 color, glm::vec2 uv0, glm::vec2 uv1, glm::vec2 uv2)
 		: v0(v0), v1(v1), v2(v2), color(color), uv0(uv0), uv1(uv1), uv2(uv2) {

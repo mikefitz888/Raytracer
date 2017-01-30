@@ -19,6 +19,7 @@
 #include "../Include/ModelLoader.h"
 #include "../Include/bitmap_image.hpp"
 
+
 #define _DOF_ENABLE_ false
 #define _AA_ENABLE true
 
@@ -49,21 +50,25 @@ int t;
 /* FUNCTIONS                                                                   */
 
 void Update();
-void Draw(std::vector<Triangle>& model);
+void Draw(std::vector<Triangle>* model);
 glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction);
 
 int main(int argc, char** argv) {
 	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
 	t = SDL_GetTicks();	// Set start value for timer.
 
-	std::vector<Triangle> model = std::vector<Triangle>();
+	//std::vector<Triangle> model = std::vector<Triangle>();
 
-	//model::Model cornell_box = model::Model("model.txt");
+	model::Model cornell_box = model::Model("Bench_WoodMetal.obj");
+	//model::Model cornell_box = model::Model("../model.txt");
+	std::vector<Triangle>* model = cornell_box.getFaces();
+
+	//printf("%d\n", model.size());
 	//LoadTestModel(model, cornell_box);
 
-	LoadTestModel(model);
+	//LoadTestModel(model);
 	
-	texture = new bitmap_image("Resources/T1.bmp");
+	texture = new bitmap_image("Resources/bench_woodmetal_a.bmp");
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
 
@@ -87,14 +92,14 @@ void Update() {
 	std::cout << "Render time: " << dt << " ms." << std::endl;
 }
 
-void Draw(std::vector<Triangle>& model) {
+void Draw(std::vector<Triangle>* model) {
 	if (SDL_MUSTLOCK(screen))
 		SDL_LockSurface(screen);
 
 	float DOF_focus_length = 2.750f;
 
 	glm::vec3 color;
-	glm::vec3 cameraPos(0.0, 0.0, -2.0);
+	glm::vec3 cameraPos(0.0, 0.0, -20.0);
 	float fov = 80;
 	float aspect_ratio = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
 	float focalLength = 1.0f;
@@ -134,7 +139,7 @@ void Draw(std::vector<Triangle>& model) {
 						direction = glm::rotateY(direction, yr);
 
 						cameraClone += focus_point; //undo translation, effect is camera has rotated about focus_point
-						color_buffer += Trace(model, cameraClone, direction);
+						color_buffer += Trace(*model, cameraClone, direction);
 					}
 				}
 
@@ -155,7 +160,7 @@ void Draw(std::vector<Triangle>& model) {
 							glm::vec3 direction(xScr + xAA, yScr + yAA, focalLength);
 							direction = glm::normalize(direction);
 
-							colorAA += Trace(model, cameraPos, direction);
+							colorAA += Trace(*model, cameraPos, direction);
 						}
 					}
 
@@ -164,7 +169,7 @@ void Draw(std::vector<Triangle>& model) {
 					color = colorAA / 25.0f;
 				}
 				else {
-					color = Trace(model, cameraPos, direction);
+					color = Trace(*model, cameraPos, direction);
 				}
 
 			}
@@ -293,7 +298,7 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 	return color_buffer;
 }
 
-bool LoadBMP(const char *fileName) {
+/*bool LoadBMP(const char *fileName) {
 	FILE *file;
 	unsigned char header[54];
 	unsigned int dataPos;
@@ -334,4 +339,4 @@ bool LoadBMP(const char *fileName) {
 	fread(data, 1, size, file);
 
 	fclose(file);
-}
+}*/
