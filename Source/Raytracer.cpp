@@ -1,10 +1,15 @@
 #include <iostream>
+
+#ifdef _WIN32
 #include <Windows.h>
+#endif
+
 #include <vector>
 #include <glm/glm.hpp>
 #include <glm/gtx/rotate_vector.hpp>
 #define _USE_MATH_DEFINES
 #include <math.h>
+#undef size_t
 #include <SDL.h>
 #undef main
 #include "../Include/SDLauxiliary.h"
@@ -16,10 +21,13 @@
 #define _DOF_ENABLE_ false
 
 //VS14 FIX
+#ifdef _WIN32
 FILE _iob[] = { *stdin, *stdout, *stderr };
 extern "C" FILE * __cdecl __iob_func(void) {
 	return _iob;
 }
+#endif
+
 /*
 using namespace std;
 using glm::vec3;
@@ -45,14 +53,14 @@ int main(int argc, char** argv) {
 	t = SDL_GetTicks();	// Set start value for timer.
 
 	std::vector<Triangle> model = std::vector<Triangle>();
-	model::Model cornell_box = model::Model();
+	model::Model cornell_box = model::Model("model.txt");
 	LoadTestModel(model, cornell_box);
 
 	while( NoQuitMessageSDL() )
 	{
 		Update();
-		Draw(cornell_box.getFaces());
-		//Draw(model);
+		//Draw(cornell_box.getFaces());
+		Draw(model);
 	}
 
 	SDL_SaveBMP( screen, "screenshot.bmp" );

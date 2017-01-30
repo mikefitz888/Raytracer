@@ -1,6 +1,7 @@
 #ifndef MODELLOADER_H
 #define MODELLOADER_H
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_integer.hpp>
 #include "Triangle.h"
 #include <vector>
 #include <string>
@@ -19,11 +20,10 @@ namespace model {
 
 	class Model {
 		std::vector<Material> materials;
-		std::vector<unsigned int> vertexIndices, uvIndices, normalIndices;
+		std::vector<unsigned int> vertexIndices, textureIndices, normalIndices;
 		std::vector<glm::vec3> vertices, vertex_normals;
 		std::vector<glm::vec2> vertex_textures; //UVs
 
-		std::vector<glm::uvec3> faces;
 		std::vector<int> mtl_map;
 
 	private:
@@ -40,8 +40,8 @@ namespace model {
 
 		inline void addFace(int a, int b, int c, int color) {
 			//faces.push_back(Triangle(vertices[a], vertices[b], vertices[c], color));
-			faces.push_back(glm::uvec3(a, b, c));
-			mtl_map.push_back(color);
+			//faces.push_back(glm::uvec3(a, b, c));
+			//mtl_map.push_back(color);
 		}
 
 		inline void addMaterial(glm::vec3 color) {
@@ -49,12 +49,20 @@ namespace model {
 		}
 
 		//Convert to Triangles for raytracer
-		inline std::vector<Triangle> getFaces() {
+		inline std::vector<Triangle>& getFaces() {
 			std::vector<Triangle> out = std::vector<Triangle>();
-			int i = 0;
-			for (auto face : faces) {
-				out.push_back(Triangle(vertices[face[0]], vertices[face[1]], vertices[face[2]], materials[mtl_map[i]].color));
-				i++;
+			for(int i = 0; i < vertexIndices.size(); i+=3){
+				out.push_back(Triangle(
+					vertices[vertexIndices[i]],
+					vertices[vertexIndices[i+1]],
+					vertices[vertexIndices[i+2]],
+					vertex_textures[textureIndices[i]],
+					vertex_textures[textureIndices[i+1]],
+					vertex_textures[textureIndices[i+2]],
+					vertex_normals[normalIndices[i]],
+					vertex_normals[normalIndices[i+1]],
+					vertex_normals[normalIndices[i+2]]
+				));
 			}
 			return out;
 		}

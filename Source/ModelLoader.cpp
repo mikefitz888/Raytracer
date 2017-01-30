@@ -67,6 +67,7 @@ namespace model {
 		// vertex/texture/normal
 		std::string v[3];
 		face >> v[0] >> v[1] >> v[2];
+		//glm::umat3 oface = glm::umat3();
 		for (int i = 0; i < 3; i++) {
 			int vertex, texture, normal;
 			std::istringstream section(v[i]);
@@ -83,6 +84,10 @@ namespace model {
 				section >> normal;
 			}
 			else continue;
+			//Assume vertex/texture/normal are all available
+			vertexIndices.push_back(vertex);
+			textureIndices.push_back(texture);
+			normalIndices.push_back(normal);
 		}
 	}
 
