@@ -56,7 +56,7 @@ void LoadTestModel(std::vector<Triangle>& triangles) {
 	triangles.push_back(Triangle(C, D, B, green, uv0_0, uv1_0, uv1_1));
 
 	// Left wall
-	triangles.push_back(Triangle(A, E, C, purple, uv0_1, uv0_0, uv1_1));
+	triangles.push_back(Triangle(C, A, E, purple, uv1_1, uv0_1, uv0_0));
 	triangles.push_back(Triangle(C, E, G, purple, uv1_1, uv0_0, uv1_0));
 
 	// Right wall
