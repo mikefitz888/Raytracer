@@ -174,10 +174,11 @@ glm::vec3 Trace(float xScr, float yScr, std::vector<Triangle>& triangles, glm::v
 				between them, we can also give each vertex a uv coordinate (mapping to texture space) and use this same
 				math to map each point within a triangle to the correct point in uv-space.
 		*/
-		glm::vec3 barycentric_coords = triangles[closest_intersect.index].calculateBarycentricCoordinates(closest_intersect.position);
+		Triangle t = triangles[closest_intersect.index];
+		glm::vec3 barycentric_coords = t.calculateBarycentricCoordinates(closest_intersect.position);
 		
-		baseColour = glm::vec3(1.0, 0.0, 0.0)*barycentric_coords.x + glm::vec3(0.0, 1.0, 0.0)*barycentric_coords.y + glm::vec3(0.0, 0.0, 1.0)*barycentric_coords.z;
-
+		glm::vec2 baseColourUV = t.uv0*barycentric_coords.x + t.uv1*barycentric_coords.y + t.uv2*barycentric_coords.z;
+		baseColour = glm::vec3(baseColourUV.x, baseColourUV.y, 0.0);
 		
 		return baseColour*light_factor;
 	}
