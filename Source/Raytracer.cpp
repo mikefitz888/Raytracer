@@ -12,6 +12,7 @@
 #include "../Include/TestModel.h"
 #include "../Include/Raytracer.h"
 #include "../Include/ModelLoader.h"
+#include "../Include/bitmap_image.hpp"
 
 #define _DOF_ENABLE_ false
 
@@ -31,6 +32,7 @@ using glm::mat3;*/
 const int SCREEN_WIDTH = 500;
 const int SCREEN_HEIGHT = 500;
 SDL_Surface* screen;
+bitmap_image *texture;
 int t;
 
 /* ----------------------------------------------------------------------------*/
@@ -51,6 +53,9 @@ int main(int argc, char** argv) {
 
 	std::vector<Triangle> model = std::vector<Triangle>();
 	LoadTestModel(model);
+	
+	texture = new bitmap_image("Resources/T1.bmp");
+
 
 	while( NoQuitMessageSDL() )
 	{
@@ -58,6 +63,7 @@ int main(int argc, char** argv) {
 		Draw(model);
 	}
 
+	delete texture;
 	SDL_SaveBMP( screen, "screenshot.bmp" );
 	return 0;
 }
@@ -126,6 +132,7 @@ void Draw(std::vector<Triangle>& model) {
 				color = Trace(x, y, model, cameraPos, direction);
 			}
 			PutPixelSDL( screen, x, y, color );
+			
 		}
 		printf("Progress: %f \n", ((float)y / (float)SCREEN_HEIGHT)*100.0f);
 	}
@@ -178,9 +185,67 @@ glm::vec3 Trace(float xScr, float yScr, std::vector<Triangle>& triangles, glm::v
 		glm::vec3 barycentric_coords = t.calculateBarycentricCoordinates(closest_intersect.position);
 		
 		glm::vec2 baseColourUV = t.uv0*barycentric_coords.x + t.uv1*barycentric_coords.y + t.uv2*barycentric_coords.z;
-		baseColour = glm::vec3(baseColourUV.x, baseColourUV.y, 0.0);
+		int tw = texture->width();
+		int th = texture->height();
+		
+		int tx = (int)((float)(tw)*baseColourUV.x);
+		int ty = (int)((float)(th)*baseColourUV.y);
+
+
+		rgb_t colour;
+		//std::cout << "TX: " << tx << " TY: " << ty << std::endl;
+		if (tx >= 0 && tx < tw && ty >= 0 && ty <= th) {
+			texture->get_pixel(tx, ty, colour);
+
+			baseColour.r = (float)colour.red/255.0f;
+			baseColour.g = (float)colour.green/225.0f;
+			baseColour.b = (float)colour.blue/255.0f;
+		}
 		
 		return baseColour*light_factor;
 	}
 	return color_buffer;
+}
+
+bool LoadBMP(const char *fileName) {
+	FILE *file;
+	unsigned char header[54];
+	unsigned int dataPos;
+	unsigned int size;
+	unsigned int width, height;
+	unsigned char *data;
+
+
+	file = fopen(fileName, "rb");
+
+	if (file == NULL) {
+		//MessageBox(NULL, L"Error: Invaild file path!", L"Error", MB_OK);
+		return false;
+	}
+
+	if (fread(header, 1, 54, file) != 54) {
+		//MessageBox(NULL, L"Error: Invaild file!", L"Error", MB_OK);
+		return false;
+	}
+
+	if (header[0] != 'B' || header[1] != 'M') {
+		//MessageBox(NULL, L"Error: Invaild file!", L"Error", MB_OK);
+		return false;
+	}
+
+	dataPos = *(int*)&(header[0x0A]);
+	size = *(int*)&(header[0x22]);
+	width = *(int*)&(header[0x12]);
+	height = *(int*)&(header[0x16]);
+
+	if (size == NULL)
+		size = width * height * 3;
+	if (dataPos == NULL)
+		dataPos = 54;
+
+	data = new unsigned char[size];
+
+	fread(data, 1, size, file);
+
+	fclose(file);
 }
