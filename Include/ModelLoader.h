@@ -3,23 +3,29 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_integer.hpp>
 #include "Triangle.h"
+#include "bitmap_image.hpp"
 #include <vector>
 #include <string>
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include <tuple>
+#include <map>
 
 namespace model {
 
 	class Material {
 	public:
-		glm::vec3 color;
-		inline Material(glm::vec3 c) : color(c) {};
+		glm::vec3 ambient_color, diffuse_color, specular_color;
+		float specular_exponent, transparency;
+		bitmap_image* ambient_map, diffuse_map, specular_map, bump_map; 
+		inline Material() {};
 	};
 
 	class Model {
 		std::vector<Material> materials;
+		std::map<std::string, unsigned int> material_map;
+		unsigned int active_material;
+
 		std::vector<unsigned int> vertexIndices, textureIndices, normalIndices;
 		std::vector<glm::vec3> vertices, vertex_normals;
 		std::vector<glm::vec2> vertex_textures; //UVs
@@ -31,21 +37,14 @@ namespace model {
 		void parseVertexNormal(std::istringstream& vertex_normal);
 		void parseVertexTexture(std::istringstream& vertex_texture);
 		void parseFace(std::istringstream& face);
+		void parseUseMaterial(std::istringstream& material);
+		void parseMaterialLib(std::istringstream& lib);
 	public:
 		Model(std::string file_name);
 		inline Model() {};
-		inline void addVertex(glm::vec3 vertex) {
-			vertices.push_back(vertex);
-		}
 
-		inline void addFace(int a, int b, int c, int color) {
-			//faces.push_back(Triangle(vertices[a], vertices[b], vertices[c], color));
-			//faces.push_back(glm::uvec3(a, b, c));
-			//mtl_map.push_back(color);
-		}
-
-		inline void addMaterial(glm::vec3 color) {
-			materials.push_back(Material(color));
+		inline Material& getActiveMaterial(){
+			return materials[active_material];
 		}
 
 		//Convert to Triangles for raytracer

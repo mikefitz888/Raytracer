@@ -31,6 +31,8 @@ namespace model {
 				else if (token == "vt") parseVertexTexture(stream);
 				else if (token == "vn") parseVertexNormal(stream);
 				else if (token == "f") parseFace(stream);
+				else if (token == "mtllib") parseMaterialLib(stream);
+				else if (token == "usemtl") parseUseMaterial(stream);
 				else printf("Token not yet supported: %s", token);
 
 			}
@@ -91,8 +93,44 @@ namespace model {
 		}
 	}
 
+	void Model::parseMaterialLib(std::istringstream& lib){
+		std::string file_name;
+		lib >> file_name;
+		std::ifstream file;
+		file.open(file_name);
 
-	Model& loadModelFromFile(std::string file_name) {
+		if(file.is_open()){
+			std::string line, token;
+			while (std::getline(file, line)) {
+				std::istringstream stream(line);
+				stream >> token;
+				Material m = getActiveMaterial();
 
+				if(token[0] == '#') continue; //skip comments
+				else if (token == "newmtl") {
+					std::string name;
+					stream >> name;
+					materials.push_back(Material());
+					material_map.insert(std::pair<std::string, unsigned int>(name, materials.size()-1));
+				}
+				else if (token == "Ka") stream >> m.ambient_color.x >> m.ambient_color.y >> m.ambient_color.z; //ambient color
+				else if (token == "Kd") stream >> m.diffuse_color.x >> m.diffuse_color.y >> m.diffuse_color.z; //diffuse color
+				else if (token == "Ks") stream >> m.specular_color.x >> m.specular_color.y >> m.specular_color.z; //specular color
+				else if (token == "Ns") stream >> m.specular_exponent;
+				else if (token == "Tr") stream >> m.transparency;
+				//else if (token == "map_Ka") parseAmbientMap(stream);
+				//else if (token == "map_Kd") parseDiffuseMap(stream);
+				//else if (token == "map_Ks") parseSpecularMap(stream);
+				//else if (token == "map_bump") parseBumpMap(stream);
+			}
+		}else{
+			std::cerr << "Failed to open material: " << file_name << std::endl;
+		}
+	}
+
+	void Model::parseUseMaterial(std::istringstream& material){
+		std::string material_name;
+		material >> material_name;
+		active_material = material_map[material_name];
 	}
 }

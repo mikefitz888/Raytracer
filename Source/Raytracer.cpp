@@ -104,6 +104,7 @@ void Draw(std::vector<Triangle>& model) {
 	float x_rotation = 0.5f;
 	float y_rotation = 0.0f;
 
+	#pragma omp parallel for
 	for (int y = 0; y<SCREEN_HEIGHT; ++y) {
 		for (int x = 0; x<SCREEN_WIDTH; ++x) {
 			float xScr = (2 * (x - SCREEN_WIDTH / 2) / (float)(SCREEN_WIDTH)) * aspect_ratio * fovFactor;
