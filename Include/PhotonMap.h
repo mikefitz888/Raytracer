@@ -1,6 +1,8 @@
 #ifndef PHOTONMAP_H
 #define PHOTONMAP_H
 
+#define _USE_MATH_DEFINES
+#include <math.h>
 #include "nanoflann.hpp"
 #include "ModelLoader.h"
 #include "Raytracer.h"

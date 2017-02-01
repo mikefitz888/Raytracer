@@ -29,7 +29,7 @@ namespace photonmap {
 		*/
 
 		//Generate photons
-		for (int i = 0; i < scene.light_sources.size(); i++) {
+		/*for (int i = 0; i < scene.light_sources.size(); i++) {
 			printf("Adding %d photons to light #%d\n", photons_per_light[i], i);
             float total_photons = photons_per_light[i];
 			while (photons_per_light[i]--) {
@@ -40,7 +40,7 @@ namespace photonmap {
 				//printf("Photon info: Dir=(%f, %f, %f), Pos=(%f, %f, %f), Bounces=%d\n", dir.x, dir.y, dir.z, pos.x, pos.y, pos.z, number_of_bounces);
 			}
 			printf("Added %d photons to light #%d\n", photons.size(), i);
-		}
+		}*/
 
 		/* 
 		** Emulate photons
@@ -53,42 +53,38 @@ namespace photonmap {
 		*/
 
 		Intersection closest, shadow;
-		for (auto photon : photons) {
-			while (photon.depth-- && photon.beam.closestIntersection(scene.getTrianglesRef(), closest)) { //Until photon misses or reaches bounce limit
-                float Pd = 0.2; //Diffuse reflect probability
-                float Ps = 0.0; //Specular reflect probabilty
-                float p = Rand(); //Generate random number
+		for (int i = 0; i < number_of_photons; i++) {
+			glm::vec3 intensity(std::pow(2.0f, scene.light_sources[0]->intensity)/photons_per_light[0]);
+			glm::vec3 origin = glm::linearRand(glm::vec3(-0.1, -0.85f, -0.1), glm::vec3(0.1, -0.99f, 0.1));
 
-                if(p <  Pd){ //Diffuse reflect   
-                    //Put photon on surface it intersects (absorb).
-                    //Bounce photon in random direction with respect to the normal of the surface.
-                    //Repeat.
-                    glm::vec3 color = closest.color * photon.color;// * glm::vec3(1.0/(1.1-c));
-					gathered_photons.emplace_back(photon.color * glm::vec3(1 / sqrt(number_of_bounces - photon.depth)), closest.position, photon.beam.direction);
-                    photon.beam.direction = glm::normalize(glm::reflect(photon.beam.direction, scene.getTrianglesRef()[closest.index].getNormal()));
-					photon.beam.origin = closest.position + photon.beam.direction * glm::vec3(0.000001);
-                }else if(p < Pd + Ps){ //Specular reflect
+			float u = Rand();
+			float v = 2 * M_PI * Rand();
+			glm::vec3 direction = glm::vec3(std::cos(v)*std::sqrt(u), std::sin(v)*std::sqrt(u), std::sqrt(1-u));
 
-                }else{ //Absorb photon
-                    glm::vec3 color = closest.color * photon.color;// * glm::vec3(1.0/(1.1-c));
-					gathered_photons.emplace_back(photon.color * glm::vec3(1 / sqrt(number_of_bounces - photon.depth)), closest.position, photon.beam.direction);
-                    break;
-                }
+			Ray ray(origin, direction);
+			unsigned int bounce_limit = 10;
+			while (bounce_limit-- && ray.closestIntersection(scene.getTrianglesRef(), closest)) {
+				glm::vec3 pd = closest.color; //Pr(Diffuse reflection)
+				glm::vec3 ps(0.0); //Pr(Specular reflection)
 
+				float Pr = std::max(pd.r + ps.r, std::max(pd.g + ps.g, pd.b + ps.b));
+				float Pd = (pd.r + pd.g + pd.b) / (pd.r + pd.g + pd.b + ps.r + ps.g + ps.b);
+				float Ps = (ps.r + ps.g + ps.b) / (pd.r + pd.g + pd.b + ps.r + ps.g + ps.b);
 
-				//Store photon information (color/energy, position, direction)
-				//float c = closest.color.x>closest.color.y && closest.color.x>closest.color.z ? closest.color.x : closest.color.y>closest.color.z ? closest.color.y : closest.color.z; //Est. max reflectiveness
-
-				/*if (c < Rand() || !photon.depth) {
-					//Absorb photon
-					glm::vec3 color = closest.color * photon.color * glm::vec3(1.0/(1.1-c));
-					gathered_photons.emplace_back(photon.color * glm::vec3(1 / sqrt(number_of_bounces - photon.depth)), closest.position, photon.beam.direction);
+				float r = Rand();
+				if (r < Pd) { //Diffuse reflection
+					gathered_photons.emplace_back(intensity, closest.position, direction); //Store photon
+					direction = glm::normalize(glm::reflect(direction, scene.getTrianglesRef()[closest.index].getNormal())); //Reflect photon
+					origin = closest.position + direction * glm::vec3(0.000001); //Slight offset to prevent colliding with current geometry
+					intensity *= pd / Pd; //Adjust powers to suit probability of survival
 				}
-				else {
-					//Bounce photon
-					photon.beam.direction = glm::normalize(glm::reflect(photon.beam.direction, scene.getTrianglesRef()[closest.index].getNormal()));
-					photon.beam.origin = closest.position + photon.beam.direction * glm::vec3(0.000001);
-				}*/
+				else if (r < Pd + Ps) { //Specular reflection
+					intensity *= ps / Ps;
+				}
+				else { //Absorb photon
+					gathered_photons.emplace_back(intensity, closest.position, direction); //Store photon
+					break;
+				}
 			}
 		}
 		printf("Gathered %d photons of data.\n", gathered_photons.size());
