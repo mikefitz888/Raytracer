@@ -113,7 +113,12 @@ void Draw(model::Scene scene) {
 	float DOF_focus_length = 2.750f;
 
 	glm::vec3 color;
-	glm::vec3 cameraPos(0.0, 0.0, -2.0);
+
+	//glm::vec3 cameraPos(0.0, 0.0, -2.0);
+
+	glm::vec3 cameraPos(8.0, -8.0, -10.0);
+	glm::vec3 cameraDirection(-(float)M_PI / 5.0f, -(float)M_PI / 6.0f, 0.0f);
+
 	float fov = 80;
 	float aspect_ratio = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
 	float focalLength = 1.0f;
@@ -135,6 +140,10 @@ void Draw(model::Scene scene) {
 			float yScr = (2 * (y - SCREEN_HEIGHT / 2) / (float)(SCREEN_HEIGHT)) * fovFactor;
 			glm::vec3 direction(xScr, yScr, focalLength);
 			direction = glm::normalize(direction);
+
+			direction = glm::rotateX(direction, cameraDirection.x);
+			direction = glm::rotateY(direction, cameraDirection.y);
+			direction = glm::rotateY(direction, cameraDirection.z);
 			//glm::vec3 color( 1.0, 0.0, 0.0 );
 			if (_DOF_ENABLE_) {
 				glm::vec3 color_buffer(0.0f, 0.0f, 0.0f);
@@ -165,8 +174,8 @@ void Draw(model::Scene scene) {
 					// Anti-aliasing:
 					glm::vec3 colorAA(0.0, 0.0, 0.0);
 
-					for (float xAA = -0.5f / (float)SCREEN_WIDTH; xAA <= 0.5f / (float)SCREEN_WIDTH; xAA += 0.25f / (float)SCREEN_WIDTH) {
-						for (float yAA = -0.5f / (float)SCREEN_HEIGHT; yAA <= 0.5f / (float)SCREEN_HEIGHT; yAA += 0.25f / (float)SCREEN_HEIGHT) {
+					for (float xAA = -0.5f / (float)SCREEN_WIDTH; xAA <= 0.5f / (float)SCREEN_WIDTH; xAA += 0.50f / (float)SCREEN_WIDTH) {
+						for (float yAA = -0.5f / (float)SCREEN_HEIGHT; yAA <= 0.5f / (float)SCREEN_HEIGHT; yAA += 0.50f / (float)SCREEN_HEIGHT) {
 
 							float xScr = (2 * (x - SCREEN_WIDTH / 2) / (float)(SCREEN_WIDTH)) * aspect_ratio * fovFactor;
 							float yScr = (2 * (y - SCREEN_HEIGHT / 2) / (float)(SCREEN_HEIGHT)) * fovFactor;
@@ -174,13 +183,17 @@ void Draw(model::Scene scene) {
 							glm::vec3 direction(xScr + xAA, yScr + yAA, focalLength);
 							direction = glm::normalize(direction);
 
+							direction = glm::rotateX(direction, cameraDirection.x);
+							direction = glm::rotateY(direction, cameraDirection.y);
+							direction = glm::rotateY(direction, cameraDirection.z);
+
 							colorAA += Trace(scene.getTrianglesRef(), cameraPos, direction);
 						}
 					}
 
 
 					//color = Trace(xScr, yScr, model, cameraPos, direction);
-					color = colorAA / 25.0f;
+					color = colorAA / 9.0f;
 				}
 				else {
 					color = Trace(scene.getTrianglesRef(), cameraPos, direction);
@@ -226,7 +239,7 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 		glm::vec2 baseColourUV = t.uv0*barycentric_coords.x + t.uv1*barycentric_coords.y + t.uv2*barycentric_coords.z;
 		int tw = texture->width();
 		int th = texture->height();
-		
+
 		int tx = (int)((float)(tw)*baseColourUV.x);
 		int ty = (int)((float)(th)*baseColourUV.y);
 
@@ -240,27 +253,9 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 			baseColour.g = (float)colour.green/225.0f;
 			baseColour.b = (float)colour.blue/255.0f;
 		}
-		
-		// SIMPLE LIGHTING
-		const glm::vec3 light_position(0.0, -0.75, 0.0);
-		glm::vec3 dir_to_light = light_position - closest_intersect.position;
-		float light_distance = glm::length(dir_to_light);
-		float light_factor = 1.0 - glm::clamp((light_distance / 2.5), 0.0, 1.0);
-		light_factor = glm::clamp((double)light_factor, 0.25, 1.0)*2.5;
-
-		// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
-		Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
-		Intersection closest_intersect2;
-
-		// If the ray intersects with something, and the distance to the intersecting object is closer than 
-		if (lightRay.closestIntersection(triangles, closest_intersect2)) {
-			if (closest_intersect2.distance < light_distance) {
-				light_factor = 0.0;
-			}
-		}
 
 		// Get normal
-		/*glm::vec3 surface_normal = t.normal;
+		glm::vec3 surface_normal = -(t.n0*barycentric_coords.x + t.n1*barycentric_coords.y + t.n2*barycentric_coords.z);
 		glm::vec3 texture_normal;
 
 		// Get normal map data:
@@ -279,13 +274,13 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 			texture_normal.r = (float)norm.red / 255.0f;
 			texture_normal.g = (float)norm.green / 225.0f;
 			texture_normal.b = (float)norm.blue / 255.0f;
-		}*/
+		}
 
 		// Combine normal with texture normal:
-		//glm::vec3 combined_normal = texture_normal*2.0f - 1.0f;
+		glm::vec3 combined_normal = texture_normal*2.0f - 1.0f;
 
 		//glm::vec3 tangent   = glm::normalize(t.v1 - t.v0);
-		/*glm::vec3 edge1 = t.v1 - t.v0;
+		glm::vec3 edge1 = t.v1 - t.v0;
 		glm::vec3 edge2 = t.v2 - t.v0;
 
 		float du1 = t.uv1.x - t.uv0.x;
@@ -293,21 +288,49 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 		float du2 = t.uv2.x - t.uv0.x;
 		float dv2 = t.uv2.y - t.uv0.y;
 
-		glm::vec3 dp2perp = glm::cross(edge2, t.normal);
-		glm::vec3 dp1perp = glm::cross(t.normal, edge1);
+		glm::vec3 dp2perp = glm::cross(edge2, surface_normal);
+		glm::vec3 dp1perp = glm::cross(surface_normal, edge1);
 		glm::vec3 tangent = dp2perp * du1 + dp1perp * du2;
 		glm::vec3 bitangent = dp2perp * dv1 + dp1perp * dv2;
 
-		tangent = glm::cross(t.normal, bitangent);
-		bitangent = glm::cross(t.normal, tangent);
+		tangent = glm::cross(surface_normal, bitangent);
+		bitangent = glm::cross(surface_normal, tangent);
 
 		float invmax = glm::inversesqrt(glm::max(glm::dot(tangent, tangent), glm::dot(bitangent, bitangent)));
 
-		glm::mat3x3 TBN = glm::mat3x3(tangent*invmax, bitangent*invmax, t.normal);
+		glm::mat3x3 TBN = glm::mat3x3(tangent*invmax, bitangent*invmax, surface_normal);
 		combined_normal = glm::normalize(TBN*texture_normal);
 
-		return (combined_normal +glm::vec3(1.0))/2.0f;*/
-		return baseColour*light_factor;
+		// SIMPLE LIGHTING
+		const glm::vec3 light_position(-30.0, -30, 0.0);
+		glm::vec3 dir_to_light = light_position - closest_intersect.position;
+		float light_distance = glm::length(dir_to_light);
+		float light_factor = 1.0 - glm::clamp((light_distance / 100.0), 0.0, 1.0);
+		light_factor = glm::clamp((double)light_factor, 0.25, 1.0)*2.0f;
+
+		// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
+		Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
+		Intersection closest_intersect2;
+
+		// Specularity
+		glm::vec3 LightReflect = glm::normalize(glm::reflect(-dir_to_light, surface_normal));
+		float SpecularFactor   = glm::dot(-ray.direction, LightReflect);
+		if (SpecularFactor > 0) {
+			SpecularFactor = pow(SpecularFactor, 32.0f);
+		}
+
+		// If the ray intersects with something, and the distance to the intersecting object is closer than 
+		if (lightRay.closestIntersection(triangles, closest_intersect2)) {
+			if (closest_intersect2.distance < light_distance) {
+				light_factor = 0.2;
+			}
+		} 
+		
+		
+
+		//return (surface_normal + glm::vec3(1.0)) / 2.0f;
+		//return (combined_normal +glm::vec3(1.0))/2.0f;
+		return baseColour*light_factor + SpecularFactor;
 	}
 	return color_buffer;
 }
