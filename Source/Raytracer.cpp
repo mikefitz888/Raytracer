@@ -81,17 +81,17 @@ int main(int argc, char** argv) {
 	texture = new bitmap_image("Resources/bench_woodmetal_a.bmp");
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
-	photonmap::PhotonMapper photon_mapper(10, 3); //Number of photons, number of bounces
+	photonmap::PhotonMapper photon_mapper(1000000, 3); //Number of photons, number of bounces
 	if (_PHOTON_MAPPING_ENABLE_) {
-		//photon_mapper.mapScene(scene);
+		photon_mapper.mapScene(scene);
+		printf("Finished Photon Mapping\n");
 	}
-
 
 	while( NoQuitMessageSDL() )
 	{
-		Update();
+		//Update();
 		//Draw(cornell_box.getFaces());
-		Draw(scene);
+		//Draw(scene);
 	}
 
 	delete texture;

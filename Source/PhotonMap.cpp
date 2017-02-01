@@ -1,7 +1,7 @@
 #include "../Include/PhotonMap.h"
 
 namespace photonmap {
-	Photon::Photon(glm::vec3 o, glm::vec3 d, unsigned int depth) : beam(o, d) { }
+	Photon::Photon(glm::vec3 o, glm::vec3 d, unsigned int _depth) : beam(o, d), depth(_depth) { }
 
 	void PhotonMapper::mapScene(model::Scene& scene) {
 		float total_light_intensity = 0.0f;
@@ -10,7 +10,7 @@ namespace photonmap {
 		unsigned int assigned_photons = 0;
 		std::vector<unsigned int> photons_per_light;
 		for (int i = 0; i < scene.light_sources.size(); i++) {
-			photons_per_light[i] = (unsigned int)(((float)number_of_photons) * (scene.light_sources[i]->intensity / total_light_intensity));
+			photons_per_light.push_back((unsigned int)(((float)number_of_photons) * (scene.light_sources[i]->intensity / total_light_intensity)));
 			assigned_photons += photons_per_light[i];
 		}
 
@@ -27,10 +27,15 @@ namespace photonmap {
 
 		//Generate photons
 		for (int i = 0; i < scene.light_sources.size(); i++) {
+			printf("Adding %d photons to light #%d\n", photons_per_light[i], i);
 			while (photons_per_light[i]--) {
 				//Light uniformly distributed in all directions, not necessarily the best approach, we probably want to stop upwards directed light
-				photons.emplace_back(scene.light_sources[i]->position, glm::sphericalRand(1.0f), number_of_bounces);
+				auto dir = glm::sphericalRand(1.0f);
+				photons.emplace_back(scene.light_sources[i]->position, dir, number_of_bounces);
+				auto pos = scene.light_sources[i]->position;
+				//printf("Photon info: Dir=(%f, %f, %f), Pos=(%f, %f, %f), Bounces=%d\n", dir.x, dir.y, dir.z, pos.x, pos.y, pos.z, number_of_bounces);
 			}
+			printf("Added %d photons to light #%d\n", photons.size(), i);
 		}
 
 		/* 
@@ -45,7 +50,7 @@ namespace photonmap {
 
 		Intersection closest, shadow;
 		for (auto photon : photons) {
-			while (photon.depth-- && photon.beam.closestIntersection(scene.getTrianglesRef(), closest)) { //Until photon misses or reaches bounce limit
+			while (photon.depth-- /*&& photon.beam.closestIntersection(scene.getTrianglesRef(), closest)*/) { //Until photon misses or reaches bounce limit
 				//Store photon information (color/energy, position, direction)
 				gathered_photons.emplace_back(closest.color * glm::vec3(1 / sqrt(number_of_bounces-photon.depth)) , closest.position, photon.beam.direction);
 
@@ -61,5 +66,6 @@ namespace photonmap {
 				photon.beam.origin = closest.position + photon.beam.direction * glm::vec3(0.000001);
 			}
 		}
+		printf("Gathered %d photons of data.\n", gathered_photons.size());
 	}
 }
