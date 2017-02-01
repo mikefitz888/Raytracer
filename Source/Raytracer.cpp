@@ -53,8 +53,8 @@ int t;
 /* FUNCTIONS                                                                   */
 
 void Update();
-void Draw(model::Scene scene);
-glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction);
+void Draw(model::Scene scene, photonmap::PhotonMap& photon_map);
+glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map);
 
 int main(int argc, char** argv) {
 	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
@@ -81,17 +81,15 @@ int main(int argc, char** argv) {
 	texture = new bitmap_image("Resources/bench_woodmetal_a.bmp");
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
-	photonmap::PhotonMapper photon_mapper(1000000, 3); //Number of photons, number of bounces
-	if (_PHOTON_MAPPING_ENABLE_) {
-		photon_mapper.mapScene(scene);
-		printf("Finished Photon Mapping\n");
-	}
+	photonmap::PhotonMapper photon_mapper(scene, 1000000, 3); //Number of photons, number of bounces
+	photonmap::PhotonMap photon_map(&photon_mapper);
+
 
 	while( NoQuitMessageSDL() )
 	{
-		//Update();
+		Update();
 		//Draw(cornell_box.getFaces());
-		//Draw(scene);
+		Draw(scene, photon_map);
 	}
 
 	delete texture;
@@ -104,10 +102,10 @@ void Update() {
 	int t2 = SDL_GetTicks();
 	float dt = float(t2 - t);
 	t = t2;
-	std::cout << "Render time: " << dt << " ms." << std::endl;
+	//std::cout << "Render time: " << dt << " ms." << std::endl;
 }
 
-void Draw(model::Scene scene) {
+void Draw(model::Scene scene, photonmap::PhotonMap& photon_map) {
 	if (SDL_MUSTLOCK(screen))
 		SDL_LockSurface(screen);
 
@@ -163,7 +161,7 @@ void Draw(model::Scene scene) {
 						direction = glm::rotateY(direction, yr);
 
 						cameraClone += focus_point; //undo translation, effect is camera has rotated about focus_point
-						color_buffer += Trace(scene.getTrianglesRef(), cameraClone, direction);
+						color_buffer += Trace(scene.getTrianglesRef(), cameraClone, direction, photon_map);
 					}
 				}
 
@@ -188,7 +186,7 @@ void Draw(model::Scene scene) {
 							direction = glm::rotateY(direction, cameraDirection.y);
 							direction = glm::rotateY(direction, cameraDirection.z);
 
-							colorAA += Trace(scene.getTrianglesRef(), cameraPos, direction);
+							colorAA += Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map);
 						}
 					}
 
@@ -197,7 +195,7 @@ void Draw(model::Scene scene) {
 					color = colorAA / 9.0f;
 				}
 				else {
-					color = Trace(scene.getTrianglesRef(), cameraPos, direction);
+					color = Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map);
 				}
 
 			}
@@ -214,14 +212,19 @@ void Draw(model::Scene scene) {
 }
 
 //Returns colour of nearest intersecting triangle
-glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction) {
+glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map) {
 	Intersection closest_intersect;
 	glm::vec3 color_buffer = glm::vec3(0.0f, 0.0f, 0.0f);
 
 	Ray ray(cameraPos, direction);
 	if (ray.closestIntersection(triangles, closest_intersect)) {
-
-		glm::vec3 baseColour = closest_intersect.color;
+		glm::vec3 baseColour;
+		if (_PHOTON_MAPPING_ENABLE_) {
+			baseColour = photon_map.gatherPhotons(closest_intersect.position, triangles[closest_intersect.index].getNormal());
+		}
+		else {
+			baseColour = closest_intersect.color;
+		}
 
 		// Calculate interpolated colour:
 		/*

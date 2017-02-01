@@ -50,7 +50,7 @@ namespace photonmap {
 
 		Intersection closest, shadow;
 		for (auto photon : photons) {
-			while (photon.depth-- /*&& photon.beam.closestIntersection(scene.getTrianglesRef(), closest)*/) { //Until photon misses or reaches bounce limit
+			while (photon.depth-- && photon.beam.closestIntersection(scene.getTrianglesRef(), closest)) { //Until photon misses or reaches bounce limit
 				//Store photon information (color/energy, position, direction)
 				gathered_photons.emplace_back(closest.color * glm::vec3(1 / sqrt(number_of_bounces-photon.depth)) , closest.position, photon.beam.direction);
 
@@ -67,5 +67,42 @@ namespace photonmap {
 			}
 		}
 		printf("Gathered %d photons of data.\n", gathered_photons.size());
+	}
+
+	PhotonMap::PhotonMap(PhotonMapper* _p) : p(*_p), photon_map(3, (*_p), nanoflann::KDTreeSingleIndexAdaptorParams(10))
+	{
+		//photon_map(3, points, nanoflann::KDTreeSingleIndexAdaptorParams(10)), p(points)
+		//photon_tree_t photon_map(3, p, nanoflann::KDTreeSingleIndexAdaptorParams(10));
+		photon_map.buildIndex();
+		printf("Size of photon_map = %d", photon_map.size());
+	}
+
+	//Finds the N nearest neighbours to a given point and returns the indices + the squared euclidean distance to each
+	void PhotonMap::findNNearestPoints(glm::vec3 point, std::vector<size_t>& ret_index, std::vector<float>& out_dist_sqr, unsigned int number_of_results) {
+		//std::vector<size_t>   ret_index(number_of_results);
+		//std::vector<float>    out_dist_sqr(number_of_results);
+
+		float query_pt[3] = { point.x, point.y, point.z };
+		number_of_results = photon_map.knnSearch(&query_pt[0], number_of_results, &ret_index[0], &out_dist_sqr[0]);
+
+		// In case of less points in the tree than requested:
+		ret_index.resize(number_of_results);
+		out_dist_sqr.resize(number_of_results);
+	}
+
+	glm::vec3 PhotonMap::gatherPhotons(glm::vec3 point, glm::vec3 normal) {
+		std::vector<size_t> nearest_points(10);
+		std::vector<float> sqr_distances(10);
+
+		findNNearestPoints(point, nearest_points, sqr_distances, 10);
+		
+		glm::vec3 energy(0.0, 0.0, 0.0);
+		for (int i = 0; i < nearest_points.size(); i++) {
+			float weight = std::max(0.0f, -glm::dot(normal, p.getDirection(nearest_points[i]))); //Single photon diffuse lighting
+			weight *= (1.0 - std::sqrt(sqr_distances[i])) / 10.0;
+			energy += p.getEnergy(nearest_points[i]) * glm::vec3(weight);
+		}
+		//printf("Energy = (%f, %f, %f); %d\n", energy.x, energy.y, energy.z, nearest_points.size());
+		return glm::clamp(energy, glm::vec3(0.0), glm::vec3(1.0));
 	}
 }
