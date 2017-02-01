@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
 	texture = new bitmap_image("Resources/bench_woodmetal_a.bmp");
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
-	photonmap::PhotonMapper photon_mapper(scene, 5000000, 3); //Number of photons, number of bounces
+	photonmap::PhotonMapper photon_mapper(scene, 1000000, 3); //Number of photons, number of bounces
 	photonmap::PhotonMap photon_map(&photon_mapper);
 
 

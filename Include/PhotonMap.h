@@ -6,6 +6,12 @@
 #include "Raytracer.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/random.hpp>
+#include <random>
+#include <functional>
+
+static std::default_random_engine generator(time(nullptr));
+static std::uniform_real_distribution<float> distribution(0, 1);
+static auto Rand = std::bind(distribution, generator);
 
 namespace model {
 	class Scene;

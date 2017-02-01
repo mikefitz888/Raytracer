@@ -52,18 +52,18 @@ namespace photonmap {
 		for (auto photon : photons) {
 			while (photon.depth-- && photon.beam.closestIntersection(scene.getTrianglesRef(), closest)) { //Until photon misses or reaches bounce limit
 				//Store photon information (color/energy, position, direction)
-				gathered_photons.emplace_back(closest.color * glm::vec3(1 / sqrt(number_of_bounces-photon.depth)) , closest.position, photon.beam.direction);
+				float c = closest.color.x>closest.color.y && closest.color.x>closest.color.z ? closest.color.x : closest.color.y>closest.color.z ? closest.color.y : closest.color.z; //Est. max reflectiveness
 
-				//Calculate shadow photon, essentially by finding 2nd closest intersection. Bumping origin of ray slightly to prevent trivial collision
-				//These may need to be stored separately, will find out after testing
-				photon.beam.origin = closest.position + photon.beam.direction * glm::vec3(0.000001);
-				if (photon.beam.closestIntersection(scene.getTrianglesRef(), shadow)) {
-					gathered_photons.emplace_back(glm::vec3(-0.25f), shadow.position, photon.beam.direction);
+				if (c < Rand() || !photon.depth) {
+					//Absorb photon
+					glm::vec3 color = closest.color * photon.color * glm::vec3(1.0/(1.1-c));
+					gathered_photons.emplace_back(photon.color * glm::vec3(1 / sqrt(number_of_bounces - photon.depth)), closest.position, photon.beam.direction);
 				}
-
-				//Bounce photon
-				photon.beam.direction = glm::normalize(glm::reflect(photon.beam.direction, scene.getTrianglesRef()[closest.index].getNormal()));
-				photon.beam.origin = closest.position + photon.beam.direction * glm::vec3(0.000001);
+				else {
+					//Bounce photon
+					photon.beam.direction = glm::normalize(glm::reflect(photon.beam.direction, scene.getTrianglesRef()[closest.index].getNormal()));
+					photon.beam.origin = closest.position + photon.beam.direction * glm::vec3(0.000001);
+				}
 			}
 		}
 		printf("Gathered %d photons of data.\n", gathered_photons.size());
@@ -98,6 +98,7 @@ namespace photonmap {
 		
 		glm::vec3 energy(0.0, 0.0, 0.0);
 		for (int i = 0; i < nearest_points.size(); i++) {
+			if (sqr_distances[i] > 0.1) continue;
 			float weight = std::max(0.0f, -glm::dot(normal, p.getDirection(nearest_points[i]))); //Single photon diffuse lighting
 			weight *= (1.0 - std::sqrt(sqr_distances[i])) / 50.0;
 			energy += p.getEnergy(nearest_points[i]) * glm::vec3(weight);
