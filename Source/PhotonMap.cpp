@@ -91,15 +91,15 @@ namespace photonmap {
 	}
 
 	glm::vec3 PhotonMap::gatherPhotons(glm::vec3 point, glm::vec3 normal) {
-		std::vector<size_t> nearest_points(10);
-		std::vector<float> sqr_distances(10);
+		std::vector<size_t> nearest_points(50);
+		std::vector<float> sqr_distances(50);
 
-		findNNearestPoints(point, nearest_points, sqr_distances, 10);
+		findNNearestPoints(point, nearest_points, sqr_distances, 50);
 		
 		glm::vec3 energy(0.0, 0.0, 0.0);
 		for (int i = 0; i < nearest_points.size(); i++) {
 			float weight = std::max(0.0f, -glm::dot(normal, p.getDirection(nearest_points[i]))); //Single photon diffuse lighting
-			weight *= (1.0 - std::sqrt(sqr_distances[i])) / 10.0;
+			weight *= (1.0 - std::sqrt(sqr_distances[i])) / 50.0;
 			energy += p.getEnergy(nearest_points[i]) * glm::vec3(weight);
 		}
 		//printf("Energy = (%f, %f, %f); %d\n", energy.x, energy.y, energy.z, nearest_points.size());
