@@ -18,6 +18,7 @@ glm::vec3 Ray::getIntersection(Triangle triangle) {
 
 bool Ray::closestIntersection(const std::vector<Triangle>& triangles, Intersection& closestIntersection) {
 	bool result = false;
+
 	float min_dist = std::numeric_limits<float>::max();
 	glm::vec3 position;
 	int index;
@@ -66,6 +67,7 @@ bool Ray::closestIntersection(const std::vector<Triangle>& triangles, Intersecti
 		closestIntersection.distance = min_dist;
 		closestIntersection.position = position;
 		closestIntersection.index = index;
+		closestIntersection.color = triangles[index].color;
 	}
 	return result;
 }

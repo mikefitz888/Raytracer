@@ -12,6 +12,40 @@
 #include <map>
 
 namespace model {
+	class Model;
+
+	enum LTYPE : unsigned int {POINT=0};
+	struct LightSource {
+		float intensity;
+		glm::vec3 position;
+		glm::vec3 direction;
+		LTYPE type;
+		inline LightSource(glm::vec3 p, glm::vec3 d, float i = 1.0f, LTYPE t = LTYPE::POINT) : position(p), direction(d), intensity(i), type(t) {}
+	};
+
+	struct Scene {
+	private:
+		std::vector<Triangle> triangles;
+	public:
+		std::vector<Model*> models;
+		std::vector<LightSource*> light_sources;
+		void getTriangles(std::vector<Triangle>& triangles);
+	
+		inline std::vector<Triangle>& getTrianglesRef() { return triangles; }
+		inline void addModel(Model* model) {
+			models.emplace_back(model);
+		}
+
+		inline void addLight(LightSource* light) {
+			light_sources.emplace_back(light);
+		}
+
+		inline void addTriangles(std::vector<Triangle>& ts) {
+			for (auto t : ts) {
+				triangles.push_back(t);
+			}
+		}
+	};
 
 	class Material {
 	public:
@@ -25,6 +59,7 @@ namespace model {
 		std::vector<Material> materials;
 		std::map<std::string, unsigned int> material_map;
 		unsigned int active_material;
+		bool modified = true;
 
 		std::vector<unsigned int> vertexIndices, textureIndices, normalIndices;
 		std::vector<glm::vec3> vertices, vertex_normals;
@@ -49,19 +84,22 @@ namespace model {
 
 		//Convert to Triangles for raytracer
 		inline std::vector<Triangle>* getFaces() {
-			triangles.clear();
-			for(int i = 0; i < vertexIndices.size(); i+=3){
-				triangles.emplace_back(
-					vertices[vertexIndices[i]],
-					vertices[vertexIndices[i+1]],
-					vertices[vertexIndices[i+2]],
-					vertex_textures[textureIndices[i]],
-					vertex_textures[textureIndices[i+1]],
-					vertex_textures[textureIndices[i+2]],
-					vertex_normals[normalIndices[i]],
-					vertex_normals[normalIndices[i+1]],
-					vertex_normals[normalIndices[i+2]]
-				);
+			if (modified) {
+				modified = false;
+				triangles.clear();
+				for (int i = 0; i < vertexIndices.size(); i += 3) {
+					triangles.emplace_back(
+						vertices[vertexIndices[i]],
+						vertices[vertexIndices[i + 1]],
+						vertices[vertexIndices[i + 2]],
+						vertex_textures[textureIndices[i]],
+						vertex_textures[textureIndices[i + 1]],
+						vertex_textures[textureIndices[i + 2]],
+						vertex_normals[normalIndices[i]],
+						vertex_normals[normalIndices[i + 1]],
+						vertex_normals[normalIndices[i + 2]]
+					);
+				}
 			}
 			return &triangles;
 		}

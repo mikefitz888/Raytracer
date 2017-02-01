@@ -18,10 +18,13 @@
 #include "../Include/Raytracer.h"
 #include "../Include/ModelLoader.h"
 #include "../Include/bitmap_image.hpp"
+#include "../Include/PhotonMap.h"
 
 
 #define _DOF_ENABLE_ false
 #define _AA_ENABLE true
+#define _TEXTURE_ENABLE_ false
+#define _PHOTON_MAPPING_ENABLE_ true
 
 //VS14 FIX
 #ifdef _WIN32
@@ -50,33 +53,44 @@ int t;
 /* FUNCTIONS                                                                   */
 
 void Update();
-void Draw(std::vector<Triangle>* model);
+void Draw(model::Scene scene);
 glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction);
 
 int main(int argc, char** argv) {
 	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
 	t = SDL_GetTicks();	// Set start value for timer.
 
-	//std::vector<Triangle> model = std::vector<Triangle>();
+	std::vector<Triangle> model = std::vector<Triangle>();
+	LoadTestModel(model);
 
-	model::Model cornell_box = model::Model("Bench_WoodMetal.obj");
+	model::Scene scene;
+	scene.addTriangles(model); //For testing, actual use should involve type Model
+	
+
+	//model::Model cornell_box = model::Model("Bench_WoodMetal.obj");
 	//model::Model cornell_box = model::Model("../model.txt");
-	std::vector<Triangle>* model = cornell_box.getFaces();
+	//scene.addModel(&cornell_box);
+	//std::vector<Triangle>* model = cornell_box.getFaces();
 
 	//printf("%d\n", model.size());
 	//LoadTestModel(model, cornell_box);
 
-	//LoadTestModel(model);
+	
 	
 	texture = new bitmap_image("Resources/bench_woodmetal_a.bmp");
 	normal_texture = new bitmap_image("Resources/N1.bmp");
+
+	//photonmap::PhotonMapper photon_mapper(10, 3); //Number of photons, number of bounces
+	if (_PHOTON_MAPPING_ENABLE_) {
+		//photon_mapper.mapScene(scene);
+	}
 
 
 	while( NoQuitMessageSDL() )
 	{
 		Update();
 		//Draw(cornell_box.getFaces());
-		Draw(model);
+		Draw(scene);
 	}
 
 	delete texture;
@@ -92,14 +106,14 @@ void Update() {
 	std::cout << "Render time: " << dt << " ms." << std::endl;
 }
 
-void Draw(std::vector<Triangle>* model) {
+void Draw(model::Scene scene) {
 	if (SDL_MUSTLOCK(screen))
 		SDL_LockSurface(screen);
 
 	float DOF_focus_length = 2.750f;
 
 	glm::vec3 color;
-	glm::vec3 cameraPos(0.0, 0.0, -20.0);
+	glm::vec3 cameraPos(0.0, 0.0, -2.0);
 	float fov = 80;
 	float aspect_ratio = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
 	float focalLength = 1.0f;
@@ -139,7 +153,7 @@ void Draw(std::vector<Triangle>* model) {
 						direction = glm::rotateY(direction, yr);
 
 						cameraClone += focus_point; //undo translation, effect is camera has rotated about focus_point
-						color_buffer += Trace(*model, cameraClone, direction);
+						color_buffer += Trace(scene.getTrianglesRef(), cameraClone, direction);
 					}
 				}
 
@@ -160,7 +174,7 @@ void Draw(std::vector<Triangle>* model) {
 							glm::vec3 direction(xScr + xAA, yScr + yAA, focalLength);
 							direction = glm::normalize(direction);
 
-							colorAA += Trace(*model, cameraPos, direction);
+							colorAA += Trace(scene.getTrianglesRef(), cameraPos, direction);
 						}
 					}
 
@@ -169,7 +183,7 @@ void Draw(std::vector<Triangle>* model) {
 					color = colorAA / 25.0f;
 				}
 				else {
-					color = Trace(*model, cameraPos, direction);
+					color = Trace(scene.getTrianglesRef(), cameraPos, direction);
 				}
 
 			}
@@ -193,7 +207,7 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 	Ray ray(cameraPos, direction);
 	if (ray.closestIntersection(triangles, closest_intersect)) {
 
-		glm::vec3 baseColour = triangles[closest_intersect.index].color;
+		glm::vec3 baseColour = closest_intersect.color;
 
 		// Calculate interpolated colour:
 		/*
@@ -219,7 +233,7 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 
 		rgb_t colour;
 		//std::cout << "TX: " << tx << " TY: " << ty << std::endl;
-		if (tx >= 0 && tx < tw && ty >= 0 && ty <= th) {
+		if (tx >= 0 && tx < tw && ty >= 0 && ty <= th && _TEXTURE_ENABLE_) {
 			texture->get_pixel(tx, ty, colour);
 
 			baseColour.r = (float)colour.red/255.0f;
@@ -241,7 +255,7 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 		// If the ray intersects with something, and the distance to the intersecting object is closer than 
 		if (lightRay.closestIntersection(triangles, closest_intersect2)) {
 			if (closest_intersect2.distance < light_distance) {
-				light_factor = 0.2;
+				light_factor = 0.0;
 			}
 		}
 

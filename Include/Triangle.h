@@ -42,6 +42,10 @@ public:
 		return (0 < intersect.y) && (0 < intersect.z) && (intersect.y + intersect.z < 1);
 	}
 
+	inline glm::vec3 getNormal() {
+		return normal;
+	}
+
 	inline void ComputeNormal() {
 		glm::vec3 e1 = v1 - v0;
 		glm::vec3 e2 = v2 - v0;
@@ -78,6 +82,7 @@ public:
 
 struct Intersection {
 	glm::vec3 position;
+	glm::vec3 color;
 	float distance;
 	int index;
 	Intersection(glm::vec3 pos, float dis, int ind) : position(pos), distance(dis), index(ind) {}

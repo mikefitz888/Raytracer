@@ -14,6 +14,14 @@ std::string trim(const std::string& str, const std::string& whitespace = " \t\n\
 }
 
 namespace model {
+	void Scene::getTriangles(std::vector<Triangle>& triangles) {
+		for (auto model : models) {
+			for (auto triangle : *(model->getFaces())) {
+				triangles.push_back(triangle);
+			}
+		}
+	}
+
 	Model::Model(std::string file_name) {
 		std::string token;
 		
