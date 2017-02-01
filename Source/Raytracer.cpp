@@ -23,7 +23,7 @@
 
 #define _DOF_ENABLE_ false
 #define _AA_ENABLE true
-#define _TEXTURE_ENABLE_ false
+#define _TEXTURE_ENABLE_ true
 #define _PHOTON_MAPPING_ENABLE_ true
 
 //VS14 FIX
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 
 	model::Scene scene;
 	scene.addTriangles(model); //For testing, actual use should involve type Model
-	model::LightSource basic_light(glm::vec3(0.0, -0.9, 0.0), glm::vec3(0, 0, 0));
+	model::LightSource basic_light(glm::vec3(0.0, -0.15, 0.0), glm::vec3(0, 0, 0), 11);
 	scene.addLight(basic_light);
 
 	//model::Model cornell_box = model::Model("Bench_WoodMetal.obj");
@@ -335,7 +335,7 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 
 		//return (surface_normal + glm::vec3(1.0)) / 2.0f;
 		//return (combined_normal +glm::vec3(1.0))/2.0f;
-		return baseColour;// *light_factor + SpecularFactor;
+		return baseColour;// * light_factor + SpecularFactor;
 	}
 	return color_buffer;
 }

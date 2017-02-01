@@ -82,8 +82,8 @@ namespace photonmap {
 		//Need to accumulate color
 		unsigned int depth;
 		bool absorbed = false;
-		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f); //Photon is initially white
-		Photon(glm::vec3 o, glm::vec3 d, unsigned int depth = 3);
+		glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f); //Photon is initially white by default
+		Photon(glm::vec3 o, glm::vec3 d, unsigned int depth = 3, float intensity = 1);
 	};
 
 	class PhotonMapper {
