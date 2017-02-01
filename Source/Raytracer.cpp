@@ -65,7 +65,8 @@ int main(int argc, char** argv) {
 
 	model::Scene scene;
 	scene.addTriangles(model); //For testing, actual use should involve type Model
-	
+	model::LightSource basic_light(glm::vec3(0.0, -0.9, 0.0), glm::vec3(0, 0, 0));
+	scene.addLight(basic_light);
 
 	//model::Model cornell_box = model::Model("Bench_WoodMetal.obj");
 	//model::Model cornell_box = model::Model("../model.txt");
@@ -80,7 +81,7 @@ int main(int argc, char** argv) {
 	texture = new bitmap_image("Resources/bench_woodmetal_a.bmp");
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
-	//photonmap::PhotonMapper photon_mapper(10, 3); //Number of photons, number of bounces
+	photonmap::PhotonMapper photon_mapper(10, 3); //Number of photons, number of bounces
 	if (_PHOTON_MAPPING_ENABLE_) {
 		//photon_mapper.mapScene(scene);
 	}
@@ -114,10 +115,10 @@ void Draw(model::Scene scene) {
 
 	glm::vec3 color;
 
-	//glm::vec3 cameraPos(0.0, 0.0, -2.0);
-
-	glm::vec3 cameraPos(8.0, -8.0, -10.0);
-	glm::vec3 cameraDirection(-(float)M_PI / 5.0f, -(float)M_PI / 6.0f, 0.0f);
+	glm::vec3 cameraPos(0.0, 0.0, -2.0);
+	glm::vec3 cameraDirection(0.0f, 0.0f, 0.0f);
+	//glm::vec3 cameraPos(8.0, -8.0, -10.0);
+	//glm::vec3 cameraDirection(-(float)M_PI / 5.0f, -(float)M_PI / 6.0f, 0.0f);
 
 	float fov = 80;
 	float aspect_ratio = (float)SCREEN_WIDTH / (float)SCREEN_HEIGHT;
@@ -302,7 +303,8 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 		combined_normal = glm::normalize(TBN*texture_normal);
 
 		// SIMPLE LIGHTING
-		const glm::vec3 light_position(-30.0, -30, 0.0);
+		//const glm::vec3 light_position(-30.0, -30, 0.0);
+		const glm::vec3 light_position(0.0, -0.98, 0.0);
 		glm::vec3 dir_to_light = light_position - closest_intersect.position;
 		float light_distance = glm::length(dir_to_light);
 		float light_factor = 1.0 - glm::clamp((light_distance / 100.0), 0.0, 1.0);

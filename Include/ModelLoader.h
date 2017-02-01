@@ -36,8 +36,8 @@ namespace model {
 			models.emplace_back(model);
 		}
 
-		inline void addLight(LightSource* light) {
-			light_sources.emplace_back(light);
+		inline void addLight(LightSource& light) {
+			light_sources.emplace_back(&light);
 		}
 
 		inline void addTriangles(std::vector<Triangle>& ts) {
