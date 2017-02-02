@@ -61,9 +61,10 @@ namespace photonmap {
 			float v = 2 * M_PI * Rand();
 			glm::vec3 direction = glm::vec3(std::cos(v)*std::sqrt(u), std::sin(v)*std::sqrt(u), std::sqrt(1-u));
 
-			Ray ray(origin, direction);
+			Ray ray(origin, direction); //Ray is not being updated each iteration
 			unsigned int bounce_limit = 10;
-			while (bounce_limit-- && ray.closestIntersection(scene.getTrianglesRef(), closest)) {
+			while (bounce_limit > 0 && ray.closestIntersection(scene.getTrianglesRef(), closest)) {
+                bounce_limit--;
 				glm::vec3 pd = closest.color; //Pr(Diffuse reflection)
 				glm::vec3 ps(0.0); //Pr(Specular reflection)
 
@@ -73,19 +74,20 @@ namespace photonmap {
 
 				float r = Rand();
 				if (r < Pd) { //Diffuse reflection
-					gathered_photons.emplace_back(intensity, closest.position, direction); //Store photon
-					direction = glm::normalize(glm::reflect(direction, scene.getTrianglesRef()[closest.index].getNormal())); //Reflect photon
-					origin = closest.position + direction * glm::vec3(0.000001); //Slight offset to prevent colliding with current geometry
+					gathered_photons.emplace_back(intensity, closest.position, ray.direction); //Store photon
+					ray.direction = glm::normalize(glm::reflect(direction, scene.getTrianglesRef()[closest.index].getNormal())); //Reflect photon
+					ray.origin = closest.position + direction * glm::vec3(0.000001); //Slight offset to prevent colliding with current geometry
 					intensity *= pd / Pd; //Adjust powers to suit probability of survival
 				}
 				else if (r < Pd + Ps) { //Specular reflection
 					intensity *= ps / Ps;
 				}
 				else { //Absorb photon
-					gathered_photons.emplace_back(intensity, closest.position, direction); //Store photon
+					gathered_photons.emplace_back(intensity, closest.position, ray.direction); //Store photon
 					break;
 				}
 			}
+            if(i % 100 == 0){printf("Photon = %d\n", i);}
 		}
 		printf("Gathered %d photons of data.\n", gathered_photons.size());
 	}

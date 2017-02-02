@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 
 	model::Scene scene;
 	scene.addTriangles(model); //For testing, actual use should involve type Model
-	model::LightSource basic_light(glm::vec3(0.0, -0.15, 0.0), glm::vec3(0, 0, 0), 10);
+	model::LightSource basic_light(glm::vec3(0.0, -0.15, 0.0), glm::vec3(0, 0, 0), 12);
 	scene.addLight(basic_light);
 
 	//model::Model cornell_box = model::Model("Bench_WoodMetal.obj");
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
 	texture = new bitmap_image("Resources/bench_woodmetal_a.bmp");
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
-	photonmap::PhotonMapper photon_mapper(scene, 100000, 10); //Number of photons, number of bounces
+	photonmap::PhotonMapper photon_mapper(scene, 1000000, 10); //Number of photons, number of bounces
 	photonmap::PhotonMap photon_map(&photon_mapper);
 
 
