@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 
 	model::Scene scene;
 	scene.addTriangles(model); //For testing, actual use should involve type Model
-	model::LightSource basic_light(glm::vec3(0.0, -0.15, 0.0), glm::vec3(0, 0, 0), 12);
+	model::LightSource basic_light(glm::vec3(0.0, -0.85, 0.0), glm::vec3(0, 0, 0), 11);
 	scene.addLight(basic_light);
 
 	//model::Model cornell_box = model::Model("Bench_WoodMetal.obj");
@@ -81,16 +81,79 @@ int main(int argc, char** argv) {
 	texture = new bitmap_image("Resources/bench_woodmetal_a.bmp");
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
-	photonmap::PhotonMapper photon_mapper(scene, 1000000, 10); //Number of photons, number of bounces
-	photonmap::PhotonMap photon_map(&photon_mapper);
+	
+		photonmap::PhotonMapper photon_mapper(scene, 100000, 10); //Number of photons, number of bounces
+		photonmap::PhotonMap photon_map(&photon_mapper);
+
+		glm::vec3 campos(0.0, 0.0, -2.0);
+	while (NoQuitMessageSDL()) {
+
+		Uint8* keystate = SDL_GetKeyState(0);
+		if (keystate[SDLK_UP]) {
+			// Move camera forward
+			campos.z += 0.025;
+		}
+		if (keystate[SDLK_DOWN]) {
+			// Move camera backward
+			campos.z -= 0.025;
+		}
+		if (keystate[SDLK_LEFT]) {
+			// Move camera to the left
+			campos.x -= 0.025;
+		}
+		if (keystate[SDLK_RIGHT]) {
+			// Move 
+			campos.x += 0.025;
+		}
+
+		// Render photons
+		if (SDL_MUSTLOCK(screen))
+			SDL_LockSurface(screen);
+		SDL_FillRect(screen, NULL, 0x00000);
+
+		// TEMP DEBUG RENDER PHOTONS
+		std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getGatheredPhotons();
+
+		printf("\n \nPHOTONS: %d \n", photoninfo.size());
+		int count = 0;
+		for (auto pi : photoninfo) {
+			glm::vec3 pos = pi.position;
+
+			// Project position to 2D:
+			float xScr = (pos.x- campos.x) / (pos.z-campos.z);
+			float yScr = (pos.y-campos.y) / (pos.z-campos.z);
+
+			// Scale and bias
+			xScr += 1;
+			yScr += 1;
+			xScr *= 0.5;
+			yScr *= 0.5;
+			xScr *= 500;
+			yScr *= 500;
+
+			// Draw point (only if the point isn't behind the camera, otherwise we get weird wrapping)
+			if ((pos.z - campos.z) > 0.0) {
+				PutPixelSDL(screen, xScr, yScr, pi.color*255.0f);
+			}
+			count++;
+		}
+
+		if (SDL_MUSTLOCK(screen))
+			SDL_UnlockSurface(screen);
+
+		SDL_UpdateRect(screen, 0, 0, 0, 0);
+	}
+
+		int a;
+		std::cin >> a;
 
 
-	while( NoQuitMessageSDL() )
+	/*while( NoQuitMessageSDL() )
 	{
 		Update();
 		//Draw(cornell_box.getFaces());
 		Draw(scene, photon_map);
-	}
+	}*/
 
 	delete texture;
 	SDL_SaveBMP( screen, "screenshot.bmp" );

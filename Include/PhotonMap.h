@@ -1,3 +1,4 @@
+
 #ifndef PHOTONMAP_H
 #define PHOTONMAP_H
 
@@ -18,6 +19,8 @@ static auto Rand = std::bind(distribution, generator);
 namespace model {
 	class Scene;
 }
+
+//class SDL_Surface;
 
 namespace photonmap {
 	class PhotonMapper;
@@ -92,15 +95,16 @@ namespace photonmap {
 		unsigned int number_of_photons;
 		unsigned int number_of_bounces;
 
-		std::vector<PhotonInfo> gathered_photons;
+		
 		std::vector<Photon> photons;
-
+		std::vector<PhotonInfo> gathered_photons;
 	public:
+		inline std::vector<PhotonInfo>& getGatheredPhotons() { return gathered_photons; }
 		inline PhotonMapper(model::Scene& scene, unsigned int photon_count = 1000, unsigned int bounces = 3) : number_of_photons(photon_count), number_of_bounces(bounces) {
 			photons.reserve(number_of_photons);
 			mapScene(scene);
 		}
-
+		//void render(SDL_Surface* screen);
 		void mapScene(model::Scene& scene); //Generate photons for each light source, distributed by light intensity
 
 		inline glm::vec3 getDirection(size_t i) { return gathered_photons[i].direction; }

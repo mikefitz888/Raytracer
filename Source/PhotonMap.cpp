@@ -1,4 +1,5 @@
 #include "../Include/PhotonMap.h"
+//#include "../Include/SDLauxiliary.h"
 
 namespace photonmap {
 	Photon::Photon(glm::vec3 o, glm::vec3 d, unsigned int _depth, float intensity) : beam(o, d), depth(_depth) {
@@ -55,7 +56,7 @@ namespace photonmap {
 		Intersection closest, shadow;
 		for (int i = 0; i < number_of_photons; i++) {
 			glm::vec3 intensity(std::pow(2.0f, scene.light_sources[0]->intensity)/photons_per_light[0]);
-			glm::vec3 origin = glm::linearRand(glm::vec3(-0.1, -0.85f, -0.1), glm::vec3(0.1, -0.99f, 0.1));
+			glm::vec3 origin = scene.light_sources[0]->position;//glm::vec3(-0.1, -0.85f, -0.1);//glm::linearRand(glm::vec3(-0.1, -0.85f, -0.1), glm::vec3(0.1, -0.99f, 0.1));
 
 			float u = Rand();
 			float v = 2 * M_PI * Rand();
@@ -91,6 +92,28 @@ namespace photonmap {
 		}
 		printf("Gathered %d photons of data.\n", gathered_photons.size());
 	}
+	
+	/*void PhotonMapper::render(SDL_Surface* screen){
+		for (auto pi : this->gathered_photons) {
+			glm::vec3 pos = pi.position;
+
+			// Project position to 2D:
+			float xScr = pos.x / pos.z;
+			float yScr = pos.y / pos.z;
+
+			// Scale and bias
+			xScr += 1;
+			yScr += 1;
+			xScr *= 0.5;
+			yScr *= 0.5;
+			xScr *= 500;
+			yScr *= 500;
+
+			// Draw point
+			//PutPixelSDL(screen, xScr, yScr, pi.color);
+
+		}
+	}*/
 
 	PhotonMap::PhotonMap(PhotonMapper* _p) : p(*_p), photon_map(3, (*_p), nanoflann::KDTreeSingleIndexAdaptorParams(10))
 	{
