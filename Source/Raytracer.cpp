@@ -20,6 +20,9 @@
 #include "../Include/bitmap_image.hpp"
 #include "../Include/PhotonMap.h"
 
+//PARAMETERS
+#define PHOTON_GATHER_RANGE 0.1
+
 
 #define _DOF_ENABLE_ false
 #define _AA_ENABLE true
@@ -54,7 +57,7 @@ int t;
 
 void Update();
 void Draw(model::Scene scene, photonmap::PhotonMap& photon_map);
-glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map);
+glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene);
 
 int main(int argc, char** argv) {
 	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
@@ -65,7 +68,7 @@ int main(int argc, char** argv) {
 
 	model::Scene scene;
 	scene.addTriangles(model); //For testing, actual use should involve type Model
-	model::LightSource basic_light(glm::vec3(0.0, -0.85, 0.0), glm::vec3(0, 0, 0), 11);
+	model::LightSource basic_light(glm::vec3(0.0, -0.85, 0.0), glm::vec3(0, 1.0, 0), 8);
 	scene.addLight(basic_light);
 
 	//model::Model cornell_box = model::Model("Bench_WoodMetal.obj");
@@ -82,9 +85,9 @@ int main(int argc, char** argv) {
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
 	
-		photonmap::PhotonMapper photon_mapper(scene, 100000, 10); //Number of photons, number of bounces
+		photonmap::PhotonMapper photon_mapper(scene, 10000, 10); //Number of photons, number of bounces
 		photonmap::PhotonMap photon_map(&photon_mapper);
-
+		scene.removeFront();
 		glm::vec3 campos(0.0, 0.0, -2.0);
 	while (NoQuitMessageSDL()) {
 
@@ -109,16 +112,18 @@ int main(int argc, char** argv) {
 		// Render photons
 		if (SDL_MUSTLOCK(screen))
 			SDL_LockSurface(screen);
-		SDL_FillRect(screen, NULL, 0x00000);
+		SDL_FillRect(screen, NULL, 0x000000);
 
 		// TEMP DEBUG RENDER PHOTONS
-		std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getGatheredPhotons();
 
-		printf("\n \nPHOTONS: %d \n", photoninfo.size());
+		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getDirectPhotons();
+		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
+		std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getShadowPhotons(); SDL_FillRect(screen, NULL, 0xFFFFFF);
+
+		//printf("\n \nPHOTONS: %d \n", photoninfo.size());
 		int count = 0;
 		for (auto pi : photoninfo) {
 			glm::vec3 pos = pi.position;
-
 			// Project position to 2D:
 			float xScr = (pos.x- campos.x) / (pos.z-campos.z);
 			float yScr = (pos.y-campos.y) / (pos.z-campos.z);
@@ -148,13 +153,14 @@ int main(int argc, char** argv) {
 		std::cin >> a;
 
 
-	/*while( NoQuitMessageSDL() )
+	//while( NoQuitMessageSDL() )
 	{
 		Update();
 		//Draw(cornell_box.getFaces());
 		Draw(scene, photon_map);
-	}*/
-
+	}
+	std::cout << "Render Complete\n";
+	while (NoQuitMessageSDL());
 	delete texture;
 	SDL_SaveBMP( screen, "screenshot.bmp" );
 	return 0;
@@ -224,7 +230,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map) {
 						direction = glm::rotateY(direction, yr);
 
 						cameraClone += focus_point; //undo translation, effect is camera has rotated about focus_point
-						color_buffer += Trace(scene.getTrianglesRef(), cameraClone, direction, photon_map);
+						color_buffer += Trace(scene.getTrianglesRef(), cameraClone, direction, photon_map, scene);
 					}
 				}
 
@@ -249,7 +255,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map) {
 							direction = glm::rotateY(direction, cameraDirection.y);
 							direction = glm::rotateY(direction, cameraDirection.z);
 
-							colorAA += Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map);
+							colorAA += Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map, scene);
 						}
 					}
 
@@ -258,7 +264,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map) {
 					color = colorAA / 9.0f;
 				}
 				else {
-					color = Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map);
+					color = Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map, scene);
 				}
 
 			}
@@ -275,19 +281,14 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map) {
 }
 
 //Returns colour of nearest intersecting triangle
-glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map) {
+glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene) {
 	Intersection closest_intersect;
 	glm::vec3 color_buffer = glm::vec3(0.0f, 0.0f, 0.0f);
 
 	Ray ray(cameraPos, direction);
 	if (ray.closestIntersection(triangles, closest_intersect)) {
-		glm::vec3 baseColour;
-		if (_PHOTON_MAPPING_ENABLE_) {
-			baseColour = photon_map.gatherPhotons(closest_intersect.position, triangles[closest_intersect.index].getNormal());
-		}
-		else {
-			baseColour = closest_intersect.color;
-		}
+		glm::vec3 baseColour = closest_intersect.color;
+		
 
 		// Calculate interpolated colour:
 		/*
@@ -368,6 +369,24 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 		glm::mat3x3 TBN = glm::mat3x3(tangent*invmax, bitangent*invmax, surface_normal);
 		combined_normal = glm::normalize(TBN*texture_normal);
 
+		//PHOTON MAPPING RENDERER SECTION
+		glm::vec3 photon_radiance(0.0f);
+		if (_PHOTON_MAPPING_ENABLE_) {
+			//photon_radiance = photon_map.gatherPhotons(closest_intersect.position, triangles[closest_intersect.index].getNormal());
+			//baseColour = photon_map.gatherPhotons(closest_intersect.position, ray.direction);
+			std::vector<std::pair<size_t, float>> direct_photons_in_range, shadow_photons_in_range;
+			photon_map.getDirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, direct_photons_in_range);
+			photon_map.getShadowPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, shadow_photons_in_range);
+			const glm::vec3 light_pos = scene.light_sources[0]->position;
+			const glm::vec3 light_dir = glm::normalize(light_pos - closest_intersect.position);
+			const glm::vec3 light_normal = scene.light_sources[0]->direction;
+			float light_factor = glm::dot(-light_dir, -ray.direction);
+			if (light_factor >= FLT_EPSILON) {
+				const glm::vec3 radiance = light_factor * closest_intersect.color;
+				//colorAccumulator
+			}
+		}
+
 		// SIMPLE LIGHTING
 		//const glm::vec3 light_position(-30.0, -30, 0.0);
 		const glm::vec3 light_position(0.0, -0.98, 0.0);
@@ -390,7 +409,7 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 		// If the ray intersects with something, and the distance to the intersecting object is closer than 
 		if (lightRay.closestIntersection(triangles, closest_intersect2)) {
 			if (closest_intersect2.distance < light_distance) {
-				light_factor = 0.2;
+				light_factor = 0.0;
 			}
 		} 
 		
@@ -398,7 +417,7 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 
 		//return (surface_normal + glm::vec3(1.0)) / 2.0f;
 		//return (combined_normal +glm::vec3(1.0))/2.0f;
-		return baseColour;// * light_factor + SpecularFactor;
+		return baseColour * (photon_radiance + light_factor + SpecularFactor) ;
 	}
 	return color_buffer;
 }

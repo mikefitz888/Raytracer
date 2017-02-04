@@ -40,6 +40,10 @@ namespace model {
 			light_sources.emplace_back(&light);
 		}
 
+		inline void removeFront() {
+			triangles.erase(triangles.begin(), triangles.begin() + 2);
+		}
+
 		inline void addTriangles(std::vector<Triangle>& ts) {
 			for (auto t : ts) {
 				triangles.push_back(t);
@@ -80,6 +84,10 @@ namespace model {
 
 		inline Material& getActiveMaterial(){
 			return materials[active_material];
+		}
+
+		inline void removeFront() {
+			triangles.erase(triangles.begin(), triangles.begin() + 2);
 		}
 
 		//Convert to Triangles for raytracer
