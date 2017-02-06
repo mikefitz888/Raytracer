@@ -17,9 +17,9 @@ void LoadTestModel(std::vector<Triangle>& triangles) {
 	using glm::vec2;
 
 	// Defines colors:
-	vec3 red(0.75f, 0.15f, 0.15f);
+	vec3 red(0.75f, 0.55f, 0.55f);
 	vec3 yellow(0.75f, 0.75f, 0.15f);
-	vec3 green(0.15f, 0.75f, 0.15f);
+	vec3 green(0.55f, 0.75f, 0.66f);
 	vec3 cyan(0.15f, 0.75f, 0.75f);
 	vec3 blue(0.15f, 0.15f, 0.75f);
 	vec3 purple(0.75f, 0.15f, 0.75f);
@@ -57,24 +57,24 @@ void LoadTestModel(std::vector<Triangle>& triangles) {
 	triangles.push_back(Triangle(E, F, B, white, uv0_0, uv1_1, uv0_1));
 
 	//Floor
-	triangles.push_back(Triangle(C, B, A, green, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(C, D, B, green, uv0_0, uv1_0, uv1_1));
+	triangles.push_back(Triangle(C, B, A, white, uv0_0, uv1_1, uv0_1));
+	triangles.push_back(Triangle(C, D, B, white, uv0_0, uv1_0, uv1_1));
 
 	// Left wall
-	triangles.push_back(Triangle(C, A, E, purple, uv1_1, uv0_1, uv0_0));
-	triangles.push_back(Triangle(C, E, G, purple, uv1_1, uv0_0, uv1_0));
+	triangles.push_back(Triangle(C, A, E, green, uv1_1, uv0_1, uv0_0));
+	triangles.push_back(Triangle(C, E, G, green, uv1_1, uv0_0, uv1_0));
 
 	// Right wall
-	triangles.push_back(Triangle(F, B, D, yellow, uv1_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(H, F, D, yellow, uv0_0, uv1_0, uv0_1));
+	triangles.push_back(Triangle(F, B, D, red, uv1_0, uv1_1, uv0_1));
+	triangles.push_back(Triangle(H, F, D, red, uv0_0, uv1_0, uv0_1));
 
 	// Ceiling
-	triangles.push_back(Triangle(E, F, G, cyan, uv0_0, uv1_0, uv0_1));
-	triangles.push_back(Triangle(F, H, G, cyan, uv1_0, uv1_1, uv0_1));
+	triangles.push_back(Triangle(E, F, G, white, uv0_0, uv1_0, uv0_1));
+	triangles.push_back(Triangle(F, H, G, white, uv1_0, uv1_1, uv0_1));
 
 	// Back wall
-	triangles.push_back(Triangle(G, D, C, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(G, H, D, white, uv0_0, uv1_0, uv1_1));
+	triangles.push_back(Triangle(G, D, C, yellow, uv0_0, uv1_1, uv0_1));
+	triangles.push_back(Triangle(G, H, D, yellow, uv0_0, uv1_0, uv1_1));
 
 	
 

@@ -25,9 +25,10 @@
 
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE true
+#define _AA_ENABLE false
 #define _TEXTURE_ENABLE_ false
 #define _PHOTON_MAPPING_ENABLE_ true
+#define _SOFT_SHADOWS false
 
 //VS14 FIX
 #ifdef _WIN32
@@ -56,8 +57,8 @@ int t;
 /* FUNCTIONS                                                                   */
 
 void Update();
-void Draw(model::Scene scene, photonmap::PhotonMap& photon_map);
-glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene);
+void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::PhotonMapper& photon_mapper);
+glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper);
 
 int main(int argc, char** argv) {
 	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
@@ -81,17 +82,20 @@ int main(int argc, char** argv) {
 
 	
 	
-	texture = new bitmap_image("Resources/bench_woodmetal_a.bmp");
+	texture = new bitmap_image("Resources/T1.bmp");
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
 	
-		photonmap::PhotonMapper photon_mapper(scene, 10000, 10); //Number of photons, number of bounces
+		photonmap::PhotonMapper photon_mapper(scene, 100000, 10); //Number of photons, number of bounces
 		photonmap::PhotonMap photon_map(&photon_mapper);
 		scene.removeFront();
 		glm::vec3 campos(0.0, 0.0, -2.0);
-	while (NoQuitMessageSDL()) {
 
-		Uint8* keystate = SDL_GetKeyState(0);
+	Uint8* keystate = SDL_GetKeyState(0);
+	bool run = true;
+	while (/*keystate[SDLK_SPACE]*/run &&  NoQuitMessageSDL()) {
+
+		keystate = SDL_GetKeyState(0);
 		if (keystate[SDLK_UP]) {
 			// Move camera forward
 			campos.z += 0.025;
@@ -108,6 +112,18 @@ int main(int argc, char** argv) {
 			// Move 
 			campos.x += 0.025;
 		}
+		if (keystate[SDLK_PAGEUP]) {
+			// Move camera to the left
+			campos.y -= 0.025;
+		}
+		if (keystate[SDLK_PAGEDOWN]) {
+			// Move 
+			campos.y += 0.025;
+		}
+		if (keystate[SDLK_SPACE]) {
+			run = false;
+			continue;
+		}
 
 		// Render photons
 		if (SDL_MUSTLOCK(screen))
@@ -117,8 +133,8 @@ int main(int argc, char** argv) {
 		// TEMP DEBUG RENDER PHOTONS
 
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getDirectPhotons();
-		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
-		std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getShadowPhotons(); SDL_FillRect(screen, NULL, 0xFFFFFF);
+		std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
+		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getShadowPhotons(); SDL_FillRect(screen, NULL, 0xFFFFFF);
 
 		//printf("\n \nPHOTONS: %d \n", photoninfo.size());
 		int count = 0;
@@ -149,15 +165,15 @@ int main(int argc, char** argv) {
 		SDL_UpdateRect(screen, 0, 0, 0, 0);
 	}
 
-		int a;
-		std::cin >> a;
+		//int a;
+		//std::cin >> a;
 
 
 	//while( NoQuitMessageSDL() )
 	{
 		Update();
 		//Draw(cornell_box.getFaces());
-		Draw(scene, photon_map);
+		Draw(scene, photon_map, photon_mapper);
 	}
 	std::cout << "Render Complete\n";
 	while (NoQuitMessageSDL());
@@ -174,7 +190,7 @@ void Update() {
 	//std::cout << "Render time: " << dt << " ms." << std::endl;
 }
 
-void Draw(model::Scene scene, photonmap::PhotonMap& photon_map) {
+void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::PhotonMapper& photon_mapper) {
 	if (SDL_MUSTLOCK(screen))
 		SDL_LockSurface(screen);
 
@@ -230,7 +246,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map) {
 						direction = glm::rotateY(direction, yr);
 
 						cameraClone += focus_point; //undo translation, effect is camera has rotated about focus_point
-						color_buffer += Trace(scene.getTrianglesRef(), cameraClone, direction, photon_map, scene);
+						color_buffer += Trace(scene.getTrianglesRef(), cameraClone, direction, photon_map, scene, photon_mapper);
 					}
 				}
 
@@ -255,7 +271,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map) {
 							direction = glm::rotateY(direction, cameraDirection.y);
 							direction = glm::rotateY(direction, cameraDirection.z);
 
-							colorAA += Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map, scene);
+							colorAA += Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map, scene, photon_mapper);
 						}
 					}
 
@@ -264,7 +280,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map) {
 					color = colorAA / 9.0f;
 				}
 				else {
-					color = Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map, scene);
+					color = Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map, scene, photon_mapper);
 				}
 
 			}
@@ -281,7 +297,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map) {
 }
 
 //Returns colour of nearest intersecting triangle
-glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene) {
+glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper) {
 	Intersection closest_intersect;
 	glm::vec3 color_buffer = glm::vec3(0.0f, 0.0f, 0.0f);
 
@@ -321,6 +337,7 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 			baseColour.g = (float)colour.green/225.0f;
 			baseColour.b = (float)colour.blue/255.0f;
 		}
+		baseColour *= t.color;
 
 		// Get normal
 		glm::vec3 surface_normal = -(t.n0*barycentric_coords.x + t.n1*barycentric_coords.y + t.n2*barycentric_coords.z);
@@ -374,50 +391,94 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 		if (_PHOTON_MAPPING_ENABLE_) {
 			//photon_radiance = photon_map.gatherPhotons(closest_intersect.position, triangles[closest_intersect.index].getNormal());
 			//baseColour = photon_map.gatherPhotons(closest_intersect.position, ray.direction);
-			std::vector<std::pair<size_t, float>> direct_photons_in_range, shadow_photons_in_range;
+			std::vector<std::pair<size_t, float>> direct_photons_in_range, shadow_photons_in_range, indirect_photons_in_range;
 			photon_map.getDirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, direct_photons_in_range);
 			photon_map.getShadowPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, shadow_photons_in_range);
+			photon_map.getIndirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, indirect_photons_in_range);
 			const glm::vec3 light_pos = scene.light_sources[0]->position;
 			const glm::vec3 light_dir = glm::normalize(light_pos - closest_intersect.position);
 			const glm::vec3 light_normal = scene.light_sources[0]->direction;
 			float light_factor = glm::dot(-light_dir, -ray.direction);
-			if (light_factor >= FLT_EPSILON) {
-				const glm::vec3 radiance = light_factor * closest_intersect.color;
+
+			//if (light_factor >= FLT_EPSILON) {
+				//const glm::vec3 radiance = light_factor * closest_intersect.color;
+				
 				//colorAccumulator
-			}
+				glm::vec3 total_energy;
+				for (auto pht : indirect_photons_in_range) {
+					size_t id = pht.first;
+					glm::vec3 energy = photon_mapper.indirect_photons.photons[id].color;
+					float distance = pht.second;
+					total_energy += energy;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
+				}
+				total_energy /= indirect_photons_in_range.size();
+				//total_energy *= PHOTON_GATHER_RANGE;
+				//total_energy /= PI*PHOTON_GATHER_RANGE;
+
+				photon_radiance = closest_intersect.color*total_energy;
+			//}
 		}
 
 		// SIMPLE LIGHTING
-		//const glm::vec3 light_position(-30.0, -30, 0.0);
-		const glm::vec3 light_position(0.0, -0.98, 0.0);
-		glm::vec3 dir_to_light = light_position - closest_intersect.position;
-		float light_distance = glm::length(dir_to_light);
-		float light_factor = 1.0 - glm::clamp((light_distance / 100.0), 0.0, 1.0);
-		light_factor = glm::clamp((double)light_factor, 0.25, 1.0)*2.0f;
+		float light_factor = 0.0;
+		if (_SOFT_SHADOWS) {
+			for (int count = 0; count < 40; count++) {
 
-		// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
-		Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
-		Intersection closest_intersect2;
 
-		// Specularity
-		glm::vec3 LightReflect = glm::normalize(glm::reflect(-dir_to_light, surface_normal));
-		float SpecularFactor   = glm::dot(-ray.direction, LightReflect);
-		if (SpecularFactor > 0) {
-			SpecularFactor = pow(SpecularFactor, 32.0f);
-		}
+				const glm::vec3 light_position = glm::linearRand(glm::vec3(-0.2, -0.5f, -0.2), glm::vec3(0.2, -0.5f, 0.2));
+				glm::vec3 dir_to_light = light_position - closest_intersect.position;
+				float light_distance = glm::length(dir_to_light);
+				float light_factor_x = 1.0 - glm::clamp((light_distance / 1.5), 0.0, 1.0);
+				light_factor_x = glm::clamp((double)light_factor_x, 0.0, 1.0)*1.5f;
 
-		// If the ray intersects with something, and the distance to the intersecting object is closer than 
-		if (lightRay.closestIntersection(triangles, closest_intersect2)) {
-			if (closest_intersect2.distance < light_distance) {
-				light_factor = 0.0;
+				// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
+				Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
+				Intersection closest_intersect2;
+
+				// If the ray intersects with something, and the distance to the intersecting object is closer than 
+				if (lightRay.closestIntersection(triangles, closest_intersect2)) {
+					if (closest_intersect2.distance < light_distance) {
+						light_factor_x = 0.0;
+					}
+				}
+				light_factor += light_factor_x;
 			}
-		} 
+			light_factor /= 30;
+			light_factor = glm::clamp(light_factor, 0.0f, 1.0f)*1.5f;
+		}
+		else {
+			//const glm::vec3 light_position(-30.0, -30, 0.0);
+			const glm::vec3 light_position(0.0, -0.80, 0.0);
+			glm::vec3 dir_to_light = light_position - closest_intersect.position;
+			float light_distance = glm::length(dir_to_light);
+			light_factor = 1.0 - glm::clamp((light_distance / 1.5), 0.0, 1.0);
+			light_factor = glm::clamp((double)light_factor, 0.25, 1.0)*1.5f;
+
+			// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
+			Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
+			Intersection closest_intersect2;
+
+			// Specularity
+			/*glm::vec3 LightReflect = glm::normalize(glm::reflect(-dir_to_light, surface_normal));
+			float SpecularFactor   = glm::dot(-ray.direction, LightReflect);
+			if (SpecularFactor > 0) {
+				SpecularFactor = pow(SpecularFactor, 32.0f);
+			}
+			SpecularFactor = 0.0;*/
+
+			// If the ray intersects with something, and the distance to the intersecting object is closer than 
+			if (lightRay.closestIntersection(triangles, closest_intersect2)) {
+				if (closest_intersect2.distance < light_distance) {
+					light_factor = 0.0;
+				}
+			}
+		}
 		
 		
 
 		//return (surface_normal + glm::vec3(1.0)) / 2.0f;
 		//return (combined_normal +glm::vec3(1.0))/2.0f;
-		return baseColour * (photon_radiance + light_factor + SpecularFactor) ;
+		return baseColour * (photon_radiance + light_factor /*+ SpecularFactor*/) ;
 	}
 	return color_buffer;
 }

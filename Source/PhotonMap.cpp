@@ -55,7 +55,7 @@ namespace photonmap {
 
 		Intersection closest, shade;
 		for (int i = 0; i < number_of_photons; i++) {
-			glm::vec3 origin = scene.light_sources[0]->position;//glm::vec3(-0.1, -0.85f, -0.1);//glm::linearRand(glm::vec3(-0.1, -0.85f, -0.1), glm::vec3(0.1, -0.99f, 0.1));
+			glm::vec3 origin = glm::linearRand(glm::vec3(-0.1, -0.85f, -0.1), glm::vec3(0.1, -0.99f, 0.1));
 			float u = Rand(); float v = 2 * M_PI * Rand();
 			glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction);
 			Ray ray(origin, direction);
