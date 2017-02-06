@@ -40,11 +40,11 @@ namespace photonmap {
 		PhotonMapper& p;
 	public:
 		PhotonMap(PhotonMapper* _p);
-		void getDirectPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<unsigned int, float> >& indices);
-		void getIndirectPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<unsigned int, float> >& indices);
-		void getShadowPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<unsigned int, float> >& indices);
+		void getDirectPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices);
+		void getIndirectPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices);
+		void getShadowPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices);
 		//void getCausticPhotonsRadius();
-		bool nearestDirectPhotonInRange(const glm::vec3& pos, const float radius, unsigned int& index);
+		bool nearestDirectPhotonInRange(const glm::vec3& pos, const float radius, size_t& index);
 	};
 
 	struct PhotonInfo {

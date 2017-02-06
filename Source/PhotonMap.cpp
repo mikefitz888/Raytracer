@@ -182,21 +182,21 @@ namespace photonmap {
 		//printf("Size of photon_map = %d", photon_map.size());
 	}
 
-	void PhotonMap::getDirectPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<unsigned int, float> >& indices) {
+	void PhotonMap::getDirectPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices) {
 		const float point[3] = { pos.x, pos.y, pos.z };
 		nanoflann::SearchParams params;
 		params.sorted = false;
 		const size_t count = direct_photon_map.radiusSearch(point, radius, indices, params);
 	}
 
-	void PhotonMap::getIndirectPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<unsigned int, float> >& indices) {
+	void PhotonMap::getIndirectPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices) {
 		const float point[3] = { pos.x, pos.y, pos.z };
 		nanoflann::SearchParams params;
 		params.sorted = false;
 		const size_t count = indirect_photon_map.radiusSearch(point, radius, indices, params);
 	}
 
-	void PhotonMap::getShadowPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<unsigned int, float> >& indices) {
+	void PhotonMap::getShadowPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices) {
 		const float point[3] = { pos.x, pos.y, pos.z };
 		nanoflann::SearchParams params;
 		params.sorted = false;
@@ -205,6 +205,6 @@ namespace photonmap {
 
 	//void PhotonMap::getCausticPhotonsRadius() {}
 
-	bool PhotonMap::nearestDirectPhotonInRange(const glm::vec3& pos, const float radius, unsigned int& index) {}
+	bool PhotonMap::nearestDirectPhotonInRange(const glm::vec3& pos, const float radius, size_t& index) {}
 
 }
