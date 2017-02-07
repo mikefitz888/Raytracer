@@ -50,11 +50,18 @@ bool Ray::closestIntersection(const std::vector<Triangle>& triangles, Intersecti
 			float v = detA2 / detA;
 			if (v < 0 || v > 1) continue;
 
+			
+
 			//Check if intersection with triangle actually occurs
 			if (u + v <= 1) {
 				glm::vec3 intersect = triangle.v0 + u*triangle.e1() + v*triangle.e2();
 				float distance = glm::distance(origin, intersect);
 				if (distance < min_dist) {
+
+					// Check normal
+					float factor = glm::dot(glm::normalize(direction), glm::normalize(triangle.normal));
+					if (factor > 0.001 && !triangle.twoSided) { continue; }
+
 					result = true;
 					min_dist = distance;
 					position = intersect;

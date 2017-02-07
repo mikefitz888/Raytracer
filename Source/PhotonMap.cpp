@@ -95,7 +95,7 @@ namespace photonmap {
 
 						indirect_photons.emplace_back(radiance, intersection, ray.direction);
 
-						float p = (radiance.r + radiance.g + radiance.b) * 0.40;
+						float p = (radiance.r + radiance.g + radiance.b) * 0.60;
 						float rand = (float)std::rand() / (float)RAND_MAX;
 						if (rand > p) {
 							break;

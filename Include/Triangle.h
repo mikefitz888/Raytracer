@@ -20,6 +20,7 @@ public:
 
 	glm::vec3 normal;
 	glm::vec3 color;
+	bool twoSided = true;
 
 	
 

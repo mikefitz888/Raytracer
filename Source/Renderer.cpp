@@ -9,6 +9,7 @@ namespace RENDERER {
 
 			glm::vec3 total_colour_energy, total_light_energy, total_energy;
 			float samples_intensity = 0;
+			float samples_colour_bleed = 0;
 
 			for (auto pht : indirect_photons_in_range) {
 				size_t id = pht.first;
@@ -23,16 +24,17 @@ namespace RENDERER {
 					//float distance_factor = 1.0; // If using sampling method 1), disable this
 					float distance_factor = 1.0f - glm::clamp(distance / 0.1, 0.0, 1.0);
 
-					//samples_colour_bleed += normal_factor*glm::length(energy); //<-- gives a very smooth result, but technically not all that correct (example: http://i.imgur.com/g8EIXIJ.png)
+					samples_colour_bleed += normal_factor*glm::length(energy); //<-- gives a very smooth result, but technically not all that correct (example: http://i.imgur.com/g8EIXIJ.png)
 					samples_intensity += normal_factor; // <-- Only weight samples by their contribution. This reduces visual artifacts
-					//total_colour_energy += energy*normal_factor*distance_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
+					total_colour_energy += energy*normal_factor*distance_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
 					total_light_energy += glm::vec3(glm::length(energy))*distance_factor;
 				}
 
 			}
 
+			total_colour_energy /= samples_colour_bleed;
 			total_light_energy /= 200;
-			total_energy = (total_light_energy)/*0.5f*/;
+			total_energy = ((total_light_energy+0.75f) * total_colour_energy)/*0.5f*/;
 
 			//photon_radiance = closest_intersect.color*total_energy;
 			return total_energy;
@@ -40,29 +42,37 @@ namespace RENDERER {
 
 		vec3 radiance(0.0f);
 		Intersection random;
+
+		int samples = 0;
 		for (int i = 0; i < secondary_rays; i++) {
-			Ray ray(point, MATH::CosineWeightedHemisphereDirection(normal));
+			glm::vec3 ray_dir = MATH::CosineWeightedHemisphereDirection(normal);
+			Ray ray(point+ ray_dir*0.001f, ray_dir);
 			if (ray.closestIntersection(triangles, random)) {
 				vec3 weight = dot(ray.direction, normal) * random.color; //Experimental color bleeding
 				radiance += deepGather(random.position, triangles[random.index].getNormal(), triangles, photon_map, photon_mapper, depth-1, secondary_rays) * weight;
+				samples++;
 			}
 		}
-
+		//return radiance / (float)samples;
 		return radiance /= secondary_rays;
 	}
 
 	vec3 finalGather(vec3 point, size_t intersecting_triangle_id, std::vector<Triangle>& triangles, PhotonMap& photon_map, PhotonMapper& photon_mapper, size_t depth, size_t secondary_rays) {
 		Intersection random;
 		vec3 radiance(0.0f);
+		int samples = 0;
 		for (int i = 0; i < secondary_rays; i++) {
 			vec3 normal = triangles[intersecting_triangle_id].getNormal();
-			Ray ray(point, MATH::CosineWeightedHemisphereDirection(normal));
+			glm::vec3 ray_dir = MATH::CosineWeightedHemisphereDirection(normal);
+			Ray ray(point+ ray_dir*0.001f, ray_dir);
 			if (ray.closestIntersection(triangles, random)) {
 				vec3 weight = dot(ray.direction, normal) * random.color;
 				radiance += deepGather(random.position, triangles[random.index].getNormal(), triangles, photon_map, photon_mapper, depth - 1, secondary_rays) * weight;
+				samples++;
 			}
-			radiance /= secondary_rays;
 		}
+		//radiance /= (float)samples;
+		radiance /= secondary_rays;
 
 		//Optional: apply BRDF to this value before returning. This needs to be done by the calling function.
 		return radiance;

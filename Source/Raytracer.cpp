@@ -27,10 +27,12 @@
 
 #define _DOF_ENABLE_ false
 #define _AA_ENABLE true
+#define _AA_FACTOR 25.0f
 #define _TEXTURE_ENABLE_ false
 #define _PHOTON_MAPPING_ENABLE_ true
 #define _SOFT_SHADOWS true
-#define _SOFT_SHADOW_SAMPLES 400
+#define _SOFT_SHADOW_SAMPLES 50
+
 
 //VS14 FIX
 #ifdef _WIN32
@@ -88,13 +90,13 @@ int main(int argc, char** argv) {
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
 	
-		photonmap::PhotonMapper photon_mapper(scene, 40000, 10); //Number of photons, number of bounces
+		photonmap::PhotonMapper photon_mapper(scene, 100000, 10); //Number of photons, number of bounces
 		photonmap::PhotonMap photon_map(&photon_mapper);
-		scene.removeFront();
+		//scene.removeFront();
 		glm::vec3 campos(0.0, 0.0, -2.0);
 
 	Uint8* keystate = SDL_GetKeyState(0);
-	bool run = false;
+	bool run = true;
 	while (/*keystate[SDLK_SPACE]*/run &&  NoQuitMessageSDL()) {
 
 		keystate = SDL_GetKeyState(0);
@@ -151,8 +153,8 @@ int main(int argc, char** argv) {
 			yScr += 1;
 			xScr *= 0.5;
 			yScr *= 0.5;
-			xScr *= 500;
-			yScr *= 500;
+			xScr *= SCREEN_WIDTH;
+			yScr *= SCREEN_HEIGHT;
 
 			// Draw point (only if the point isn't behind the camera, otherwise we get weird wrapping)
 			if ((pos.z - campos.z) > 0.0) {
@@ -260,8 +262,9 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 					// Anti-aliasing:
 					glm::vec3 colorAA(0.0, 0.0, 0.0);
 
-					for (float xAA = -0.5f / (float)SCREEN_WIDTH; xAA <= 0.5f / (float)SCREEN_WIDTH; xAA += 0.50f / (float)SCREEN_WIDTH) {
-						for (float yAA = -0.5f / (float)SCREEN_HEIGHT; yAA <= 0.5f / (float)SCREEN_HEIGHT; yAA += 0.50f / (float)SCREEN_HEIGHT) {
+					const float _AA_SAMP = 1.0f/(glm::sqrt(_AA_FACTOR)-1.0f);
+					for (float xAA = -0.5f / (float)SCREEN_WIDTH; xAA <= 0.5f / (float)SCREEN_WIDTH; xAA += _AA_SAMP / (float)SCREEN_WIDTH) {
+						for (float yAA = -0.5f / (float)SCREEN_HEIGHT; yAA <= 0.5f / (float)SCREEN_HEIGHT; yAA += _AA_SAMP / (float)SCREEN_HEIGHT) {
 
 							float xScr = (2 * (x - SCREEN_WIDTH / 2) / (float)(SCREEN_WIDTH)) * aspect_ratio * fovFactor;
 							float yScr = (2 * (y - SCREEN_HEIGHT / 2) / (float)(SCREEN_HEIGHT)) * fovFactor;
@@ -279,7 +282,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 
 
 					//color = Trace(xScr, yScr, model, cameraPos, direction);
-					color = colorAA / 9.0f;
+					color = colorAA / _AA_FACTOR;
 				}
 				else {
 					color = Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map, scene, photon_mapper);
@@ -450,11 +453,11 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 			// 2) PHOTON DENSITY REDUCTION
 			//total_colour_energy /= 200;
 			total_colour_energy /= samples_colour_bleed;
-			total_light_energy /= 200;
+			total_light_energy /= 50;
 			total_energy = (total_light_energy*total_colour_energy)/*0.5f*/;
 
 			//photon_radiance = closest_intersect.color*total_energy;
-			photon_radiance = RENDERER::finalGather(closest_intersect.position, closest_intersect.index, triangles, photon_map, photon_mapper);
+			photon_radiance = RENDERER::finalGather(closest_intersect.position, closest_intersect.index, /*triangles*/scene.getTrianglesRef(), photon_map, photon_mapper);
 		}
 
 		// SIMPLE LIGHTING
