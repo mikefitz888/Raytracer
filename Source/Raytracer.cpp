@@ -26,7 +26,7 @@
 
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE true
+#define _AA_ENABLE false
 #define _AA_FACTOR 25.0f
 #define _TEXTURE_ENABLE_ false
 #define _PHOTON_MAPPING_ENABLE_ true
@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
 
 			// Draw point (only if the point isn't behind the camera, otherwise we get weird wrapping)
 			if ((pos.z - campos.z) > 0.0) {
-				PutPixelSDL(screen, xScr, yScr, pi.color*255.0f);
+				PutPixelSDL(screen, xScr, yScr, pi.color*10.0f);
 			}
 			count++;
 		}

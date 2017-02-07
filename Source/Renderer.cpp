@@ -31,10 +31,11 @@ namespace RENDERER {
 				}
 
 			}
-
 			total_colour_energy /= samples_colour_bleed;
-			total_light_energy /= 200;
-			total_energy = ((total_light_energy+0.75f) * total_colour_energy)/*0.5f*/;
+			//total_colour_energy /= 100;//samples_colour_bleed;
+			total_light_energy /= 250;
+			total_energy = ((total_light_energy + 1.05f) * total_colour_energy)/*0.5f*/;
+			//total_energy *= 0.5;
 
 			//photon_radiance = closest_intersect.color*total_energy;
 			return total_energy;
@@ -53,8 +54,8 @@ namespace RENDERER {
 				samples++;
 			}
 		}
-		//return radiance / (float)samples;
-		return radiance /= secondary_rays;
+		return radiance / (float)samples;
+		//return radiance /= secondary_rays;
 	}
 
 	vec3 finalGather(vec3 point, size_t intersecting_triangle_id, std::vector<Triangle>& triangles, PhotonMap& photon_map, PhotonMapper& photon_mapper, size_t depth, size_t secondary_rays) {
@@ -71,8 +72,8 @@ namespace RENDERER {
 				samples++;
 			}
 		}
-		//radiance /= (float)samples;
-		radiance /= secondary_rays;
+		radiance /= (float)samples;
+		//radiance /= secondary_rays;
 
 		//Optional: apply BRDF to this value before returning. This needs to be done by the calling function.
 		return radiance;

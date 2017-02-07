@@ -86,7 +86,7 @@ namespace photonmap {
 
 					// Weaken ray intensity based on distance travelled
 					float distance = glm::length(intersection - ray.origin);
-					float distance_factor = 1.0f - glm::clamp(distance / 6.8f, 0.0f, 1.0f);
+					float distance_factor = 1.0f - glm::clamp(distance / 4.5f, 0.0f, 1.0f);
 					radiance *= distance_factor;
 					
 					// Perform different operations on indirect light and direct light
@@ -95,7 +95,7 @@ namespace photonmap {
 
 						indirect_photons.emplace_back(radiance, intersection, ray.direction);
 
-						float p = (radiance.r + radiance.g + radiance.b) * 0.60;
+						float p = (radiance.r + radiance.g + radiance.b) * 0.9;
 						float rand = (float)std::rand() / (float)RAND_MAX;
 						if (rand > p) {
 							break;
