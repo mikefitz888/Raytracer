@@ -19,6 +19,7 @@
 #include "../Include/ModelLoader.h"
 #include "../Include/bitmap_image.hpp"
 #include "../Include/PhotonMap.h"
+#include "../Include/Renderer.h"
 
 //PARAMETERS
 #define PHOTON_GATHER_RANGE 0.1
@@ -87,13 +88,13 @@ int main(int argc, char** argv) {
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
 	
-		photonmap::PhotonMapper photon_mapper(scene, 400000, 10); //Number of photons, number of bounces
+		photonmap::PhotonMapper photon_mapper(scene, 40000, 10); //Number of photons, number of bounces
 		photonmap::PhotonMap photon_map(&photon_mapper);
 		scene.removeFront();
 		glm::vec3 campos(0.0, 0.0, -2.0);
 
 	Uint8* keystate = SDL_GetKeyState(0);
-	bool run = true;
+	bool run = false;
 	while (/*keystate[SDLK_SPACE]*/run &&  NoQuitMessageSDL()) {
 
 		keystate = SDL_GetKeyState(0);
@@ -393,67 +394,67 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 			//photon_radiance = photon_map.gatherPhotons(closest_intersect.position, triangles[closest_intersect.index].getNormal());
 			//baseColour = photon_map.gatherPhotons(closest_intersect.position, ray.direction);
 			std::vector<std::pair<size_t, float>> direct_photons_in_range, shadow_photons_in_range, indirect_photons_in_range;
-			photon_map.getDirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, direct_photons_in_range);
-			photon_map.getShadowPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, shadow_photons_in_range);
-			photon_map.getIndirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, indirect_photons_in_range);
+			
+			//photon_map.getDirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, direct_photons_in_range);
+			//photon_map.getShadowPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, shadow_photons_in_range);
+			//photon_map.getIndirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, indirect_photons_in_range);
+			
 			/*const glm::vec3 light_pos = scene.light_sources[0]->position;
 			const glm::vec3 light_dir = glm::normalize(light_pos - closest_intersect.position);
 			const glm::vec3 light_normal = scene.light_sources[0]->direction;
 			float light_factor = glm::dot(-light_dir, -ray.direction);*/
 
-			//if (light_factor >= FLT_EPSILON) {
-				//const glm::vec3 radiance = light_factor * closest_intersect.color;
 				
-				//colorAccumulator
-				glm::vec3 total_colour_energy, total_light_energy, total_energy;
-				float samples_intensity = 0;
-				float samples_colour_bleed = 0;
+			//colorAccumulator
+			glm::vec3 total_colour_energy, total_light_energy, total_energy;
+			float samples_intensity = 0;
+			float samples_colour_bleed = 0;
 
-				/*
-					EXPERIMENT:
-						- So I found that creating a weighting function:
-							samples_colour_bleed += normal_factor*glm::length(energy);
+			/*
+				EXPERIMENT:
+					- So I found that creating a weighting function:
+						samples_colour_bleed += normal_factor*glm::length(energy);
 
-							Gives incredibly smooth colour bleed results, though you loose the effect of lighting
+						Gives incredibly smooth colour bleed results, though you loose the effect of lighting
 
-						- So I sample the energy in two different ways now. The first samples the pure colour contribution of the colour bleed,
-						  the second measures the lighting intensity contribution of each point. These are weighted slightly differently and then
-						  get combined after.
+					- So I sample the energy in two different ways now. The first samples the pure colour contribution of the colour bleed,
+						the second measures the lighting intensity contribution of each point. These are weighted slightly differently and then
+						get combined after.
 				
-				*/
-				for (auto pht : indirect_photons_in_range) {
-					size_t id = pht.first;
-					glm::vec3 energy = photon_mapper.indirect_photons.photons[id].color;
-					float distance = pht.second;
+			*/
+			for (auto pht : indirect_photons_in_range) {
+				size_t id = pht.first;
+				glm::vec3 energy = photon_mapper.indirect_photons.photons[id].color;
+				float distance = pht.second;
 
-					// Check that sample direction matches surface normal
-					glm::vec3 normal		   = t.normal;
-					glm::vec3 photon_direction = photon_mapper.indirect_photons.photons[id].direction;
-					float     normal_factor = 1.0-glm::dot(photon_direction, t.normal);
-					if (normal_factor >= 0) {
-						//float distance_factor = 1.0; // If using sampling method 1), disable this
-						float distance_factor = 1.0f-glm::clamp(distance / PHOTON_GATHER_RANGE, 0.0, 1.0);
+				// Check that sample direction matches surface normal
+				glm::vec3 normal		   = t.normal;
+				glm::vec3 photon_direction = photon_mapper.indirect_photons.photons[id].direction;
+				float     normal_factor = 1.0-glm::dot(photon_direction, t.normal);
+				if (normal_factor >= 0) {
+					//float distance_factor = 1.0; // If using sampling method 1), disable this
+					float distance_factor = 1.0f-glm::clamp(distance / PHOTON_GATHER_RANGE, 0.0, 1.0);
 
-						samples_colour_bleed += normal_factor*glm::length(energy); //<-- gives a very smooth result, but technically not all that correct (example: http://i.imgur.com/g8EIXIJ.png)
-						samples_intensity += normal_factor; // <-- Only weight samples by their contribution. This reduces visual artifacts
-						total_colour_energy += energy*normal_factor*distance_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
-						total_light_energy += glm::vec3(glm::length(energy))*distance_factor;
-					}
-
+					samples_colour_bleed += normal_factor*glm::length(energy); //<-- gives a very smooth result, but technically not all that correct (example: http://i.imgur.com/g8EIXIJ.png)
+					samples_intensity += normal_factor; // <-- Only weight samples by their contribution. This reduces visual artifacts
+					total_colour_energy += energy*normal_factor*distance_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
+					total_light_energy += glm::vec3(glm::length(energy))*distance_factor;
 				}
-				// 1) SAMPLE BASED METHOD, DOES NOT REDUCE BRIGHTNESS BASED ON PHOTON DENSITY, but is smooth
-				/*total_colour_energy /= samples_colour_bleed;
-				total_light_energy /= samples_intensity;
-				total_energy = (total_colour_energy+total_light_energy)*0.5f;*/
 
-				// 2) PHOTON DENSITY REDUCTION
-				//total_colour_energy /= 200;
-				total_colour_energy /= samples_colour_bleed;
-				total_light_energy /= 200;
-				total_energy = (total_light_energy*total_colour_energy)/*0.5f*/;
+			}
+			// 1) SAMPLE BASED METHOD, DOES NOT REDUCE BRIGHTNESS BASED ON PHOTON DENSITY, but is smooth
+			/*total_colour_energy /= samples_colour_bleed;
+			total_light_energy /= samples_intensity;
+			total_energy = (total_colour_energy+total_light_energy)*0.5f;*/
 
-				photon_radiance = closest_intersect.color*total_energy;
-			//}
+			// 2) PHOTON DENSITY REDUCTION
+			//total_colour_energy /= 200;
+			total_colour_energy /= samples_colour_bleed;
+			total_light_energy /= 200;
+			total_energy = (total_light_energy*total_colour_energy)/*0.5f*/;
+
+			//photon_radiance = closest_intersect.color*total_energy;
+			photon_radiance = RENDERER::finalGather(closest_intersect.position, closest_intersect.index, triangles, photon_map, photon_mapper);
 		}
 
 		// SIMPLE LIGHTING
