@@ -25,10 +25,11 @@
 
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE false
+#define _AA_ENABLE true
 #define _TEXTURE_ENABLE_ false
 #define _PHOTON_MAPPING_ENABLE_ true
-#define _SOFT_SHADOWS false
+#define _SOFT_SHADOWS true
+#define _SOFT_SHADOW_SAMPLES 400
 
 //VS14 FIX
 #ifdef _WIN32
@@ -395,23 +396,52 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 			photon_map.getDirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, direct_photons_in_range);
 			photon_map.getShadowPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, shadow_photons_in_range);
 			photon_map.getIndirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, indirect_photons_in_range);
-			const glm::vec3 light_pos = scene.light_sources[0]->position;
+			/*const glm::vec3 light_pos = scene.light_sources[0]->position;
 			const glm::vec3 light_dir = glm::normalize(light_pos - closest_intersect.position);
 			const glm::vec3 light_normal = scene.light_sources[0]->direction;
-			float light_factor = glm::dot(-light_dir, -ray.direction);
+			float light_factor = glm::dot(-light_dir, -ray.direction);*/
 
 			//if (light_factor >= FLT_EPSILON) {
 				//const glm::vec3 radiance = light_factor * closest_intersect.color;
 				
 				//colorAccumulator
-				glm::vec3 total_energy;
+				glm::vec3 total_colour_energy, total_light_energy, total_energy;
+				float samples_intensity = 0;
+				float samples_colour_bleed = 0;
+
+				/*
+					EXPERIMENT:
+						- So I found that creating a weighting function:
+							samples_colour_bleed += normal_factor*glm::length(energy);
+
+							Gives incredibly smooth colour bleed results, though you loose the effect of lighting
+
+						- So I sample the energy in two different ways now. The first samples the pure colour contribution of the colour bleed,
+						  the second measures the lighting intensity contribution of each point. These are weighted slightly differently and then
+						  get combined after.
+				
+				*/
 				for (auto pht : indirect_photons_in_range) {
 					size_t id = pht.first;
 					glm::vec3 energy = photon_mapper.indirect_photons.photons[id].color;
 					float distance = pht.second;
-					total_energy += energy;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
+
+					// Check that sample direction matches surface normal
+					glm::vec3 normal		   = t.normal;
+					glm::vec3 photon_direction = photon_mapper.indirect_photons.photons[id].direction;
+					float     normal_factor = 1.0-glm::dot(photon_direction, t.normal);
+					if (normal_factor >= 0) {
+						samples_colour_bleed += normal_factor*glm::length(energy); //<-- gives a very smooth result, but technically not all that correct (example: http://i.imgur.com/g8EIXIJ.png)
+						samples_intensity += normal_factor; // <-- Only weight samples by their contribution. This reduces visual artifacts
+						total_colour_energy += energy*normal_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
+						total_light_energy += glm::vec3(glm::length(energy));
+					}
+
 				}
-				total_energy /= indirect_photons_in_range.size();
+				total_colour_energy /= samples_colour_bleed;
+				total_light_energy /= samples_intensity;
+				total_energy = (total_light_energy+total_colour_energy)*0.5f;
+
 				//total_energy *= PHOTON_GATHER_RANGE;
 				//total_energy /= PI*PHOTON_GATHER_RANGE;
 
@@ -421,15 +451,19 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 
 		// SIMPLE LIGHTING
 		float light_factor = 0.0;
+		float SpecularFactor = 0.0;
 		if (_SOFT_SHADOWS) {
-			for (int count = 0; count < 40; count++) {
+			for (int count = 0; count < _SOFT_SHADOW_SAMPLES; count++) {
 
 
-				const glm::vec3 light_position = glm::linearRand(glm::vec3(-0.2, -0.5f, -0.2), glm::vec3(0.2, -0.5f, 0.2));
+				const glm::vec3 light_position = glm::linearRand(glm::vec3(-0.2, -0.90f, -0.2), glm::vec3(0.2, -0.98f, 0.2));
+
+
 				glm::vec3 dir_to_light = light_position - closest_intersect.position;
 				float light_distance = glm::length(dir_to_light);
-				float light_factor_x = 1.0 - glm::clamp((light_distance / 1.5), 0.0, 1.0);
-				light_factor_x = glm::clamp((double)light_factor_x, 0.0, 1.0)*1.5f;
+				float light_factor_x = 1.0f - glm::clamp((light_distance / 2.35f), 0.0f, 1.0f);
+				light_factor_x = glm::clamp((double)light_factor_x, 0.0, 1.0);
+				light_factor_x *= glm::dot(t.normal, glm::normalize(dir_to_light));
 
 				// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
 				Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
@@ -443,28 +477,30 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 				}
 				light_factor += light_factor_x;
 			}
-			light_factor /= 30;
+			light_factor /= _SOFT_SHADOW_SAMPLES;
 			light_factor = glm::clamp(light_factor, 0.0f, 1.0f)*1.5f;
 		}
 		else {
 			//const glm::vec3 light_position(-30.0, -30, 0.0);
-			const glm::vec3 light_position(0.0, -0.80, 0.0);
+			const glm::vec3 light_position(0.0, -0.90, 0.0);
 			glm::vec3 dir_to_light = light_position - closest_intersect.position;
 			float light_distance = glm::length(dir_to_light);
-			light_factor = 1.0 - glm::clamp((light_distance / 1.5), 0.0, 1.0);
-			light_factor = glm::clamp((double)light_factor, 0.25, 1.0)*1.5f;
+			light_factor = 1.0f - glm::clamp((light_distance / 2.0f), 0.0f, 1.0f);
+			light_factor = glm::clamp((double)light_factor, 0.0, 1.0);
+			light_factor *= glm::dot(t.normal, glm::normalize(dir_to_light));
 
 			// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
 			Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
 			Intersection closest_intersect2;
 
 			// Specularity
-			/*glm::vec3 LightReflect = glm::normalize(glm::reflect(-dir_to_light, surface_normal));
-			float SpecularFactor   = glm::dot(-ray.direction, LightReflect);
+			glm::vec3 LightReflect = glm::normalize(glm::reflect(-dir_to_light, surface_normal));
+			SpecularFactor   = glm::dot(ray.direction, LightReflect);
 			if (SpecularFactor > 0) {
 				SpecularFactor = pow(SpecularFactor, 32.0f);
+			} else {
+				SpecularFactor = 0.0;
 			}
-			SpecularFactor = 0.0;*/
 
 			// If the ray intersects with something, and the distance to the intersecting object is closer than 
 			if (lightRay.closestIntersection(triangles, closest_intersect2)) {
@@ -473,12 +509,14 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 				}
 			}
 		}
+		//light_factor = 0.0f;
 		
 		
 
 		//return (surface_normal + glm::vec3(1.0)) / 2.0f;
 		//return (combined_normal +glm::vec3(1.0))/2.0f;
-		return baseColour * (photon_radiance + light_factor /*+ SpecularFactor*/) ;
+		glm::vec3 light_colour(1.0f, 0.90f, 0.65f);
+		return baseColour * (photon_radiance + light_factor*light_colour /*+ SpecularFactor*/);
 	}
 	return color_buffer;
 }
