@@ -55,12 +55,13 @@ namespace photonmap {
 
 		Intersection closest, shade;
 		for (int i = 0; i < number_of_photons; i++) {
-			glm::vec3 origin = glm::linearRand(glm::vec3(-0.2, -0.90f, -0.2), glm::vec3(0.2, -0.99f, 0.2));
+			glm::vec3 origin = glm::linearRand(glm::vec3(-0.2, -0.80f, -0.2), glm::vec3(0.2, -0.95f, 0.2));
 			float u = Rand(); float v = 2 * M_PI * Rand();
 			//glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?
 			glm::vec3 direction = glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 			Ray ray(origin, direction);
-			glm::vec3 radiance = glm::dot(ray.direction, glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(1.0f); //Last term is light color (white)
+			glm::vec3 radiance = glm::dot(ray.direction, glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(1.0f); //Last term is light color (white), weighted by light direction
+			//glm::vec3 radiance = glm::vec3(1.0f);
 
 			for (int bounce = 0; bounce < number_of_bounces; bounce++) {
 
@@ -72,11 +73,20 @@ namespace photonmap {
 					// determine intersection data
 					glm::vec3 intersection = closest.position;
 					glm::vec3 normal = scene.getTrianglesRef()[closest.index].getNormal();
-					glm::vec3 reflection = MATH::CosineWeightedHemisphereDirection(normal);
+					//glm::vec3 reflection = MATH::CosineWeightedHemisphereDirection(normal);;
+					glm::vec3 reflection = normal;
+					reflection = glm::rotateX(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+					reflection = glm::rotateY(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+					reflection = glm::rotateZ(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+					//glm::vec3 reflection = glm::linearRand(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+					reflection = glm::normalize(reflection);
+
+					radiance *= glm::dot(normal, reflection);
+					radiance = glm::clamp(radiance, 0.0f, 1.0f);
 
 					// Weaken ray intensity based on distance travelled
 					float distance = glm::length(intersection - ray.origin);
-					float distance_factor = 1.0f - glm::clamp(distance / 2.25f, 0.0f, 1.0f);
+					float distance_factor = 1.0f - glm::clamp(distance / 6.8f, 0.0f, 1.0f);
 					radiance *= distance_factor;
 					
 					// Perform different operations on indirect light and direct light
@@ -85,7 +95,7 @@ namespace photonmap {
 
 						indirect_photons.emplace_back(radiance, intersection, ray.direction);
 
-						float p = (radiance.r + radiance.g + radiance.b) * 0.20;
+						float p = (radiance.r + radiance.g + radiance.b) * 0.40;
 						float rand = (float)std::rand() / (float)RAND_MAX;
 						if (rand > p) {
 							break;
@@ -104,7 +114,7 @@ namespace photonmap {
 
 					// Weighted control to make a number of photons not transfer colour
 					float rand_color = (float)rand() / (float)RAND_MAX;
-					if (rand_color > 0.80) {
+					if (rand_color > 0.95) {
 						radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance);
 					} else {
 						radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance * closest.color);

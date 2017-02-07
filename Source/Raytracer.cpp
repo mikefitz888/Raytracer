@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
 	
-		photonmap::PhotonMapper photon_mapper(scene, 100000, 10); //Number of photons, number of bounces
+		photonmap::PhotonMapper photon_mapper(scene, 400000, 10); //Number of photons, number of bounces
 		photonmap::PhotonMap photon_map(&photon_mapper);
 		scene.removeFront();
 		glm::vec3 campos(0.0, 0.0, -2.0);
@@ -431,19 +431,26 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 					glm::vec3 photon_direction = photon_mapper.indirect_photons.photons[id].direction;
 					float     normal_factor = 1.0-glm::dot(photon_direction, t.normal);
 					if (normal_factor >= 0) {
+						//float distance_factor = 1.0; // If using sampling method 1), disable this
+						float distance_factor = 1.0f-glm::clamp(distance / PHOTON_GATHER_RANGE, 0.0, 1.0);
+
 						samples_colour_bleed += normal_factor*glm::length(energy); //<-- gives a very smooth result, but technically not all that correct (example: http://i.imgur.com/g8EIXIJ.png)
 						samples_intensity += normal_factor; // <-- Only weight samples by their contribution. This reduces visual artifacts
-						total_colour_energy += energy*normal_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
-						total_light_energy += glm::vec3(glm::length(energy));
+						total_colour_energy += energy*normal_factor*distance_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
+						total_light_energy += glm::vec3(glm::length(energy))*distance_factor;
 					}
 
 				}
-				total_colour_energy /= samples_colour_bleed;
+				// 1) SAMPLE BASED METHOD, DOES NOT REDUCE BRIGHTNESS BASED ON PHOTON DENSITY, but is smooth
+				/*total_colour_energy /= samples_colour_bleed;
 				total_light_energy /= samples_intensity;
-				total_energy = (total_light_energy+total_colour_energy)*0.5f;
+				total_energy = (total_colour_energy+total_light_energy)*0.5f;*/
 
-				//total_energy *= PHOTON_GATHER_RANGE;
-				//total_energy /= PI*PHOTON_GATHER_RANGE;
+				// 2) PHOTON DENSITY REDUCTION
+				//total_colour_energy /= 200;
+				total_colour_energy /= samples_colour_bleed;
+				total_light_energy /= 200;
+				total_energy = (total_light_energy*total_colour_energy)/*0.5f*/;
 
 				photon_radiance = closest_intersect.color*total_energy;
 			//}
@@ -464,6 +471,7 @@ glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec
 				float light_factor_x = 1.0f - glm::clamp((light_distance / 2.35f), 0.0f, 1.0f);
 				light_factor_x = glm::clamp((double)light_factor_x, 0.0, 1.0);
 				light_factor_x *= glm::dot(t.normal, glm::normalize(dir_to_light));
+				light_factor_x *= glm::dot(-dir_to_light, glm::vec3(0.0f, 1.0f, 0.0f)); // <-- light points downwards
 
 				// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
 				Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));

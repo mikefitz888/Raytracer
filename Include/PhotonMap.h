@@ -9,6 +9,7 @@
 #include "Raytracer.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/random.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 #include <random>
 #include <functional>
 #include "Utility.h"
