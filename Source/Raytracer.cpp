@@ -27,11 +27,13 @@
 
 #define _DOF_ENABLE_ false
 #define _AA_ENABLE false
-#define _AA_FACTOR 25.0f
+#define _AA_FACTOR 9.0f
 #define _TEXTURE_ENABLE_ false
-#define _PHOTON_MAPPING_ENABLE_ true
-#define _SOFT_SHADOWS true
-#define _SOFT_SHADOW_SAMPLES 50
+#define _GLOBAL_ILLUMINATION_ENABLE_ false
+#define _PHOTON_MAPPING_ENABLE_ false
+#define _CAUSTICS_ENABLE_ true
+#define _SOFT_SHADOWS false
+#define _SOFT_SHADOW_SAMPLES 100
 
 
 //VS14 FIX
@@ -55,6 +57,7 @@ const int SCREEN_HEIGHT = 500;
 SDL_Surface* screen;
 bitmap_image *texture;
 bitmap_image *normal_texture;
+Material *default_material, *glass_material, *metal_material;
 int t;
 
 /* ----------------------------------------------------------------------------*/
@@ -62,17 +65,35 @@ int t;
 
 void Update();
 void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::PhotonMapper& photon_mapper);
-glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper);
+glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth=0);
 
 int main(int argc, char** argv) {
 	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
 	t = SDL_GetTicks();	// Set start value for timer.
 
+    // Create materials
+    default_material = new Material();
+    glass_material = new Material();
+    glass_material->materialSetTypeRefractive(1.5f);
+
+    metal_material = new Material();
+    metal_material->materialSetTypeReflective(1.0f, 1.0f);
+
+
+    // Load models
 	std::vector<Triangle> model = std::vector<Triangle>();
 	LoadTestModel(model);
 
+	model::Model m("sphere.obj");
+    // Assign the glass material to the model
+    for (auto& t : *m.getFaces()) {
+        t.setMaterial(glass_material);
+    }
+
 	model::Scene scene;
 	scene.addTriangles(model); //For testing, actual use should involve type Model
+	scene.addModel(&m); // Bench
+	m.calculateNormals(); // <-- need this as atm we aren't using vertex normals
 	model::LightSource basic_light(glm::vec3(0.0, -0.85, 0.0), glm::vec3(0, 1.0, 0), 8);
 	scene.addLight(basic_light);
 
@@ -89,11 +110,20 @@ int main(int argc, char** argv) {
 	texture = new bitmap_image("Resources/T1.bmp");
 	normal_texture = new bitmap_image("Resources/N1.bmp");
 
-	
-		photonmap::PhotonMapper photon_mapper(scene, 100000, 10); //Number of photons, number of bounces
-		photonmap::PhotonMap photon_map(&photon_mapper);
-		//scene.removeFront();
-		glm::vec3 campos(0.0, 0.0, -2.0);
+    int t = SDL_GetTicks();
+    std::cout << "GENERATING PHOTON MAP: " << std::endl;
+
+
+#if _PHOTON_MAPPING_ENABLE_ == 1
+	photonmap::PhotonMapper photon_mapper(scene, 100000, 10); //Number of photons, number of bounces
+	photonmap::PhotonMap photon_map(&photon_mapper);
+	//scene.removeFront();
+	glm::vec3 campos(0.0, 0.0, -2.0);
+
+    int t2 = SDL_GetTicks();
+    float dt = float(t2 - t);
+    t = t2;
+    std::cout << "Photon map generated in time: " << dt << " ms." << std::endl;
 
 	Uint8* keystate = SDL_GetKeyState(0);
 	bool run = true;
@@ -137,8 +167,9 @@ int main(int argc, char** argv) {
 		// TEMP DEBUG RENDER PHOTONS
 
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getDirectPhotons();
-		std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
+		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getShadowPhotons(); SDL_FillRect(screen, NULL, 0xFFFFFF);
+        std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getCausticPhotons();
 
 		//printf("\n \nPHOTONS: %d \n", photoninfo.size());
 		int count = 0;
@@ -168,7 +199,7 @@ int main(int argc, char** argv) {
 
 		SDL_UpdateRect(screen, 0, 0, 0, 0);
 	}
-
+#endif
 		//int a;
 		//std::cin >> a;
 
@@ -177,7 +208,13 @@ int main(int argc, char** argv) {
 	{
 		Update();
 		//Draw(cornell_box.getFaces());
+#if _PHOTON_MAPPING_ENABLE_ == 1
 		Draw(scene, photon_map, photon_mapper);
+#else
+        photonmap::PhotonMapper photon_mapper(scene, 0, 0); //Number of photons, number of bounces
+        photonmap::PhotonMap photon_map(&photon_mapper);
+        Draw(scene, photon_map, photon_mapper);
+#endif
 	}
 	std::cout << "Render Complete\n";
 	while (NoQuitMessageSDL());
@@ -191,7 +228,7 @@ void Update() {
 	int t2 = SDL_GetTicks();
 	float dt = float(t2 - t);
 	t = t2;
-	//std::cout << "Render time: " << dt << " ms." << std::endl;
+	std::cout << "Render time: " << dt << " ms." << std::endl;
 }
 
 void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::PhotonMapper& photon_mapper) {
@@ -302,276 +339,318 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 }
 
 //Returns colour of nearest intersecting triangle
-glm::vec3 Trace( std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper) {
-	Intersection closest_intersect;
-	glm::vec3 color_buffer = glm::vec3(0.0f, 0.0f, 0.0f);
-
-	Ray ray(cameraPos, direction);
-	if (ray.closestIntersection(triangles, closest_intersect)) {
-		glm::vec3 baseColour = closest_intersect.color;
-		
-
-		// Calculate interpolated colour:
-		/*
-			TEMP (explanation of barycentric coordinates):
-				- Barycentric coordinates are an alternative way to represent a triangle as the combination of different weights.
-				How it boils down is that a coordinate on the surface of a triangle plane can be given a 3D barycentric coordinate (a, b, c). 
-
-				The position of that coordinate can then be converted to euclidean space by taking  pos = v0*a + v1*b + v2*c
-				- Conveniently, this allows us to use it to interpolate values. We can give each vertex a colour, and interpolate 
-				between them, we can also give each vertex a uv coordinate (mapping to texture space) and use this same
-				math to map each point within a triangle to the correct point in uv-space.
-		*/
-		Triangle t = triangles[closest_intersect.index];
-		glm::vec3 barycentric_coords = t.calculateBarycentricCoordinates(closest_intersect.position);
-		
-		glm::vec2 baseColourUV = t.uv0*barycentric_coords.x + t.uv1*barycentric_coords.y + t.uv2*barycentric_coords.z;
-		int tw = texture->width();
-		int th = texture->height();
-
-		int tx = (int)((float)(tw)*baseColourUV.x);
-		int ty = (int)((float)(th)*baseColourUV.y);
+glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth) {
+    // Recursion depth limit breaker:
+    if (depth > 5) { std::cout << "RECURSION DEPTH EXCEEDED" << std::endl; return glm::vec3(0.0f, 0.0f, 0.0f); }
 
 
-		rgb_t colour;
-		//std::cout << "TX: " << tx << " TY: " << ty << std::endl;
-		if (tx >= 0 && tx < tw && ty >= 0 && ty <= th && _TEXTURE_ENABLE_) {
-			texture->get_pixel(tx, ty, colour);
+    Intersection closest_intersect;
+    glm::vec3 color_buffer = glm::vec3(0.0f, 0.0f, 0.0f);
 
-			baseColour.r = (float)colour.red/255.0f;
-			baseColour.g = (float)colour.green/225.0f;
-			baseColour.b = (float)colour.blue/255.0f;
-		}
-		baseColour *= t.color;
-
-		// Get normal
-		glm::vec3 surface_normal = -(t.n0*barycentric_coords.x + t.n1*barycentric_coords.y + t.n2*barycentric_coords.z);
-		glm::vec3 texture_normal;
-
-		// Get normal map data:
-		tw = normal_texture->width();
-		th = normal_texture->height();
-
-		tx = (int)((float)(tw)*baseColourUV.x);
-		ty = (int)((float)(th)*baseColourUV.y);
+    Ray ray(cameraPos, direction);
+    if (ray.closestIntersection(triangles, closest_intersect)) {
+        glm::vec3 baseColour = closest_intersect.color;
 
 
-		rgb_t norm;
-		//std::cout << "TX: " << tx << " TY: " << ty << std::endl;
-		if (tx >= 0 && tx < tw && ty >= 0 && ty <= th) {
-			normal_texture->get_pixel(tx, ty, norm);
-
-			texture_normal.r = (float)norm.red / 255.0f;
-			texture_normal.g = (float)norm.green / 225.0f;
-			texture_normal.b = (float)norm.blue / 255.0f;
-		}
-
-		// Combine normal with texture normal:
-		glm::vec3 combined_normal = texture_normal*2.0f - 1.0f;
-
-		//glm::vec3 tangent   = glm::normalize(t.v1 - t.v0);
-		glm::vec3 edge1 = t.v1 - t.v0;
-		glm::vec3 edge2 = t.v2 - t.v0;
-
-		float du1 = t.uv1.x - t.uv0.x;
-		float dv1 = t.uv1.y - t.uv1.y;
-		float du2 = t.uv2.x - t.uv0.x;
-		float dv2 = t.uv2.y - t.uv0.y;
-
-		glm::vec3 dp2perp = glm::cross(edge2, surface_normal);
-		glm::vec3 dp1perp = glm::cross(surface_normal, edge1);
-		glm::vec3 tangent = dp2perp * du1 + dp1perp * du2;
-		glm::vec3 bitangent = dp2perp * dv1 + dp1perp * dv2;
-
-		tangent = glm::cross(surface_normal, bitangent);
-		bitangent = glm::cross(surface_normal, tangent);
-
-		float invmax = glm::inversesqrt(glm::max(glm::dot(tangent, tangent), glm::dot(bitangent, bitangent)));
-
-		glm::mat3x3 TBN = glm::mat3x3(tangent*invmax, bitangent*invmax, surface_normal);
-		combined_normal = glm::normalize(TBN*texture_normal);
-
-		//PHOTON MAPPING RENDERER SECTION
-		glm::vec3 photon_radiance(0.0f);
-		if (_PHOTON_MAPPING_ENABLE_) {
-			//photon_radiance = photon_map.gatherPhotons(closest_intersect.position, triangles[closest_intersect.index].getNormal());
-			//baseColour = photon_map.gatherPhotons(closest_intersect.position, ray.direction);
-			std::vector<std::pair<size_t, float>> direct_photons_in_range, shadow_photons_in_range, indirect_photons_in_range;
-			
-			//photon_map.getDirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, direct_photons_in_range);
-			//photon_map.getShadowPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, shadow_photons_in_range);
-			//photon_map.getIndirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, indirect_photons_in_range);
-			
-			/*const glm::vec3 light_pos = scene.light_sources[0]->position;
-			const glm::vec3 light_dir = glm::normalize(light_pos - closest_intersect.position);
-			const glm::vec3 light_normal = scene.light_sources[0]->direction;
-			float light_factor = glm::dot(-light_dir, -ray.direction);*/
-
-				
-			//colorAccumulator
-			glm::vec3 total_colour_energy, total_light_energy, total_energy;
-			float samples_intensity = 0;
-			float samples_colour_bleed = 0;
-
-			/*
-				EXPERIMENT:
-					- So I found that creating a weighting function:
-						samples_colour_bleed += normal_factor*glm::length(energy);
-
-						Gives incredibly smooth colour bleed results, though you loose the effect of lighting
-
-					- So I sample the energy in two different ways now. The first samples the pure colour contribution of the colour bleed,
-						the second measures the lighting intensity contribution of each point. These are weighted slightly differently and then
-						get combined after.
-				
-			*/
-			for (auto pht : indirect_photons_in_range) {
-				size_t id = pht.first;
-				glm::vec3 energy = photon_mapper.indirect_photons.photons[id].color;
-				float distance = pht.second;
-
-				// Check that sample direction matches surface normal
-				glm::vec3 normal		   = t.normal;
-				glm::vec3 photon_direction = photon_mapper.indirect_photons.photons[id].direction;
-				float     normal_factor = 1.0-glm::dot(photon_direction, t.normal);
-				if (normal_factor >= 0) {
-					//float distance_factor = 1.0; // If using sampling method 1), disable this
-					float distance_factor = 1.0f-glm::clamp(distance / PHOTON_GATHER_RANGE, 0.0, 1.0);
-
-					samples_colour_bleed += normal_factor*glm::length(energy); //<-- gives a very smooth result, but technically not all that correct (example: http://i.imgur.com/g8EIXIJ.png)
-					samples_intensity += normal_factor; // <-- Only weight samples by their contribution. This reduces visual artifacts
-					total_colour_energy += energy*normal_factor*distance_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
-					total_light_energy += glm::vec3(glm::length(energy))*distance_factor;
-				}
-
-			}
-			// 1) SAMPLE BASED METHOD, DOES NOT REDUCE BRIGHTNESS BASED ON PHOTON DENSITY, but is smooth
-			/*total_colour_energy /= samples_colour_bleed;
-			total_light_energy /= samples_intensity;
-			total_energy = (total_colour_energy+total_light_energy)*0.5f;*/
-
-			// 2) PHOTON DENSITY REDUCTION
-			//total_colour_energy /= 200;
-			total_colour_energy /= samples_colour_bleed;
-			total_light_energy /= 50;
-			total_energy = (total_light_energy*total_colour_energy)/*0.5f*/;
-
-			//photon_radiance = closest_intersect.color*total_energy;
-			photon_radiance = RENDERER::finalGather(closest_intersect.position, closest_intersect.index, /*triangles*/scene.getTrianglesRef(), photon_map, photon_mapper);
-		}
-
-		// SIMPLE LIGHTING
-		float light_factor = 0.0;
-		float SpecularFactor = 0.0;
-		if (_SOFT_SHADOWS) {
-			for (int count = 0; count < _SOFT_SHADOW_SAMPLES; count++) {
 
 
-				const glm::vec3 light_position = glm::linearRand(glm::vec3(-0.2, -0.90f, -0.2), glm::vec3(0.2, -0.98f, 0.2));
+
+        // Calculate interpolated colour:
+        /*
+            TEMP (explanation of barycentric coordinates):
+                - Barycentric coordinates are an alternative way to represent a triangle as the combination of different weights.
+                How it boils down is that a coordinate on the surface of a triangle plane can be given a 3D barycentric coordinate (a, b, c).
+
+                The position of that coordinate can then be converted to euclidean space by taking  pos = v0*a + v1*b + v2*c
+                - Conveniently, this allows us to use it to interpolate values. We can give each vertex a colour, and interpolate
+                between them, we can also give each vertex a uv coordinate (mapping to texture space) and use this same
+                math to map each point within a triangle to the correct point in uv-space.
+        */
+        Triangle t = triangles[closest_intersect.index];
+        glm::vec3 barycentric_coords = t.calculateBarycentricCoordinates(closest_intersect.position);
+
+        glm::vec2 baseColourUV = t.uv0*barycentric_coords.x + t.uv1*barycentric_coords.y + t.uv2*barycentric_coords.z;
+        int tw = texture->width();
+        int th = texture->height();
+
+        int tx = (int)((float)(tw)*baseColourUV.x);
+        int ty = (int)((float)(th)*baseColourUV.y);
 
 
-				glm::vec3 dir_to_light = light_position - closest_intersect.position;
-				float light_distance = glm::length(dir_to_light);
-				float light_factor_x = 1.0f - glm::clamp((light_distance / 2.35f), 0.0f, 1.0f);
-				light_factor_x = glm::clamp((double)light_factor_x, 0.0, 1.0);
-				light_factor_x *= glm::dot(t.normal, glm::normalize(dir_to_light));
-				light_factor_x *= glm::dot(-dir_to_light, glm::vec3(0.0f, 1.0f, 0.0f)); // <-- light points downwards
+        rgb_t colour;
+        //std::cout << "TX: " << tx << " TY: " << ty << std::endl;
+        if (tx >= 0 && tx < tw && ty >= 0 && ty <= th && _TEXTURE_ENABLE_) {
+            texture->get_pixel(tx, ty, colour);
 
-				// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
-				Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
-				Intersection closest_intersect2;
+            baseColour.r = (float)colour.red / 255.0f;
+            baseColour.g = (float)colour.green / 225.0f;
+            baseColour.b = (float)colour.blue / 255.0f;
+        }
+        baseColour *= t.color;
 
-				// If the ray intersects with something, and the distance to the intersecting object is closer than 
-				if (lightRay.closestIntersection(triangles, closest_intersect2)) {
-					if (closest_intersect2.distance < light_distance) {
-						light_factor_x = 0.0;
-					}
-				}
-				light_factor += light_factor_x;
-			}
-			light_factor /= _SOFT_SHADOW_SAMPLES;
-			light_factor = glm::clamp(light_factor, 0.0f, 1.0f)*1.5f;
-		}
-		else {
-			//const glm::vec3 light_position(-30.0, -30, 0.0);
-			const glm::vec3 light_position(0.0, -0.90, 0.0);
-			glm::vec3 dir_to_light = light_position - closest_intersect.position;
-			float light_distance = glm::length(dir_to_light);
-			light_factor = 1.0f - glm::clamp((light_distance / 2.0f), 0.0f, 1.0f);
-			light_factor = glm::clamp((double)light_factor, 0.0, 1.0);
-			light_factor *= glm::dot(t.normal, glm::normalize(dir_to_light));
+        // Get normal
+        glm::vec3 surface_normal = (t.n0*barycentric_coords.x + t.n1*barycentric_coords.y + t.n2*barycentric_coords.z);
+        glm::vec3 texture_normal;
 
-			// Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
-			Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
-			Intersection closest_intersect2;
+        // Get normal map data:
+        tw = normal_texture->width();
+        th = normal_texture->height();
 
-			// Specularity
-			glm::vec3 LightReflect = glm::normalize(glm::reflect(-dir_to_light, surface_normal));
-			SpecularFactor   = glm::dot(ray.direction, LightReflect);
-			if (SpecularFactor > 0) {
-				SpecularFactor = pow(SpecularFactor, 32.0f);
-			} else {
-				SpecularFactor = 0.0;
-			}
+        tx = (int)((float)(tw)*baseColourUV.x);
+        ty = (int)((float)(th)*baseColourUV.y);
 
-			// If the ray intersects with something, and the distance to the intersecting object is closer than 
-			if (lightRay.closestIntersection(triangles, closest_intersect2)) {
-				if (closest_intersect2.distance < light_distance) {
-					light_factor = 0.0;
-				}
-			}
-		}
-		//light_factor = 0.0f;
-		
-		
 
-		//return (surface_normal + glm::vec3(1.0)) / 2.0f;
-		//return (combined_normal +glm::vec3(1.0))/2.0f;
-		glm::vec3 light_colour(1.0f, 0.90f, 0.65f);
-		return baseColour * (photon_radiance + light_factor*light_colour /*+ SpecularFactor*/);
-	}
-	return color_buffer;
+        rgb_t norm;
+        //std::cout << "TX: " << tx << " TY: " << ty << std::endl;
+        if (tx >= 0 && tx < tw && ty >= 0 && ty <= th) {
+            normal_texture->get_pixel(tx, ty, norm);
+
+            texture_normal.r = (float)norm.red / 255.0f;
+            texture_normal.g = (float)norm.green / 225.0f;
+            texture_normal.b = (float)norm.blue / 255.0f;
+        }
+
+        // Combine normal with texture normal:
+        glm::vec3 combined_normal = texture_normal*2.0f - 1.0f;
+
+        //glm::vec3 tangent   = glm::normalize(t.v1 - t.v0);
+        glm::vec3 edge1 = t.v1 - t.v0;
+        glm::vec3 edge2 = t.v2 - t.v0;
+
+        float du1 = t.uv1.x - t.uv0.x;
+        float dv1 = t.uv1.y - t.uv1.y;
+        float du2 = t.uv2.x - t.uv0.x;
+        float dv2 = t.uv2.y - t.uv0.y;
+
+        glm::vec3 dp2perp = glm::cross(edge2, surface_normal);
+        glm::vec3 dp1perp = glm::cross(surface_normal, edge1);
+        glm::vec3 tangent = dp2perp * du1 + dp1perp * du2;
+        glm::vec3 bitangent = dp2perp * dv1 + dp1perp * dv2;
+
+        tangent = glm::cross(surface_normal, bitangent);
+        bitangent = glm::cross(surface_normal, tangent);
+
+        float invmax = glm::inversesqrt(glm::max(glm::dot(tangent, tangent), glm::dot(bitangent, bitangent)));
+
+        glm::mat3x3 TBN = glm::mat3x3(tangent*invmax, bitangent*invmax, surface_normal);
+        combined_normal = glm::normalize(TBN*texture_normal);
+
+        //PHOTON MAPPING RENDERER SECTION
+        glm::vec3 photon_radiance(0.0f);
+        if (_PHOTON_MAPPING_ENABLE_&&_GLOBAL_ILLUMINATION_ENABLE_) {
+            //photon_radiance = photon_map.gatherPhotons(closest_intersect.position, triangles[closest_intersect.index].getNormal());
+            //baseColour = photon_map.gatherPhotons(closest_intersect.position, ray.direction);
+            std::vector<std::pair<size_t, float>> direct_photons_in_range, shadow_photons_in_range, indirect_photons_in_range;
+
+            //photon_map.getDirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, direct_photons_in_range);
+            //photon_map.getShadowPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, shadow_photons_in_range);
+            //photon_map.getIndirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, indirect_photons_in_range);
+
+            /*const glm::vec3 light_pos = scene.light_sources[0]->position;
+            const glm::vec3 light_dir = glm::normalize(light_pos - closest_intersect.position);
+            const glm::vec3 light_normal = scene.light_sources[0]->direction;
+            float light_factor = glm::dot(-light_dir, -ray.direction);*/
+
+
+            //colorAccumulator
+            glm::vec3 total_colour_energy, total_light_energy, total_energy;
+            float samples_intensity = 0;
+            float samples_colour_bleed = 0;
+
+            /*
+                EXPERIMENT:
+                    - So I found that creating a weighting function:
+                        samples_colour_bleed += normal_factor*glm::length(energy);
+
+                        Gives incredibly smooth colour bleed results, though you loose the effect of lighting
+
+                    - So I sample the energy in two different ways now. The first samples the pure colour contribution of the colour bleed,
+                        the second measures the lighting intensity contribution of each point. These are weighted slightly differently and then
+                        get combined after.
+
+            */
+            for (auto pht : indirect_photons_in_range) {
+                size_t id = pht.first;
+                glm::vec3 energy = photon_mapper.indirect_photons.photons[id].color;
+                float distance = pht.second;
+
+                // Check that sample direction matches surface normal
+                glm::vec3 normal = surface_normal;//t.normal;
+                glm::vec3 photon_direction = photon_mapper.indirect_photons.photons[id].direction;
+                float     normal_factor = 1.0 - glm::dot(photon_direction, /*t.normal*/normal);
+                if (normal_factor >= 0) {
+                    //float distance_factor = 1.0; // If using sampling method 1), disable this
+                    float distance_factor = 1.0f - glm::clamp(distance / PHOTON_GATHER_RANGE, 0.0, 1.0);
+
+                    samples_colour_bleed += normal_factor*glm::length(energy); //<-- gives a very smooth result, but technically not all that correct (example: http://i.imgur.com/g8EIXIJ.png)
+                    samples_intensity += normal_factor; // <-- Only weight samples by their contribution. This reduces visual artifacts
+                    total_colour_energy += energy*normal_factor*distance_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
+                    total_light_energy += glm::vec3(glm::length(energy))*distance_factor;
+                }
+
+            }
+            // 1) SAMPLE BASED METHOD, DOES NOT REDUCE BRIGHTNESS BASED ON PHOTON DENSITY, but is smooth
+            /*total_colour_energy /= samples_colour_bleed;
+            total_light_energy /= samples_intensity;
+            total_energy = (total_colour_energy+total_light_energy)*0.5f;*/
+
+            // 2) PHOTON DENSITY REDUCTION
+            //total_colour_energy /= 200;
+            total_colour_energy /= samples_colour_bleed;
+            total_light_energy /= 50;
+            total_energy = (total_light_energy*total_colour_energy)/*0.5f*/;
+
+            //photon_radiance = closest_intersect.color*total_energy;
+            photon_radiance = RENDERER::finalGather(closest_intersect.position, closest_intersect.index, /*triangles*/scene.getTrianglesRef(), photon_map, photon_mapper);
+        }
+
+        // SIMPLE LIGHTING
+        float light_factor = 0.0;
+        float SpecularFactor = 0.0;
+        if (_SOFT_SHADOWS) {
+            for (int count = 0; count < _SOFT_SHADOW_SAMPLES; count++) {
+
+
+                const glm::vec3 light_position = glm::linearRand(glm::vec3(-0.35, -0.90f, -0.35), glm::vec3(0.35, -0.98f, 0.35));
+
+
+                glm::vec3 dir_to_light = light_position - closest_intersect.position;
+                float light_distance = glm::length(dir_to_light);
+                float light_factor_x = 1.0f - glm::clamp((light_distance / 2.35f), 0.0f, 1.0f);
+                light_factor_x = glm::clamp((double)light_factor_x, 0.0, 1.0);
+                light_factor_x *= glm::dot(/*t.normal*/surface_normal, glm::normalize(dir_to_light));
+                light_factor_x *= glm::dot(-dir_to_light, glm::vec3(0.0f, 1.0f, 0.0f)); // <-- light points downwards
+
+                // Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
+                Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
+                Intersection closest_intersect2;
+
+                // If the ray intersects with something, and the distance to the intersecting object is closer than 
+                if (lightRay.closestIntersection(triangles, closest_intersect2)) {
+                    if (closest_intersect2.distance < light_distance) {
+                        light_factor_x = 0.0;
+                    }
+                }
+                light_factor += light_factor_x;
+            }
+            light_factor /= _SOFT_SHADOW_SAMPLES;
+            light_factor = glm::clamp(light_factor, 0.0f, 1.0f)*1.5f;
+        } else {
+            //const glm::vec3 light_position(-30.0, -30, 0.0);
+            const glm::vec3 light_position(0.0, -0.75, 0.0);
+            glm::vec3 dir_to_light = light_position - closest_intersect.position;
+            float light_distance = glm::length(dir_to_light);
+            light_factor = 1.0f - glm::clamp((light_distance / 2.5f), 0.0f, 1.0f);
+            light_factor = glm::clamp((double)light_factor, 0.0, 1.0);
+            light_factor *= glm::dot(/*t.normal*/surface_normal, glm::normalize(dir_to_light));
+
+            // Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
+            Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
+            Intersection closest_intersect2;
+
+            // Specularity
+            glm::vec3 LightReflect = glm::normalize(glm::reflect(-dir_to_light, surface_normal));
+            SpecularFactor = glm::dot(ray.direction, LightReflect);
+            if (SpecularFactor > 0) {
+                SpecularFactor = pow(SpecularFactor, 32.0f);
+            } else {
+                SpecularFactor = 0.0;
+            }
+
+            // If the ray intersects with something, and the distance to the intersecting object is closer than 
+            if (lightRay.closestIntersection(triangles, closest_intersect2)) {
+                if (closest_intersect2.distance < light_distance) {
+                    light_factor = 0.0;
+                }
+            }
+        }
+        //light_factor = 0.0f;
+
+        // *********************************************************************** //
+        // CAUSTICS
+        /*
+            Both photon mapping and caustics need to be turned on
+        */
+        if (_PHOTON_MAPPING_ENABLE_&&_CAUSTICS_ENABLE_) {
+            // TODO: Pull caustic data from photon map
+
+        }
+
+
+        // GET MATERIAL TYPE
+        /*
+          Depending on material type, we may send out new rays to pull reflection/refraction data
+        */
+        glm::vec3 light_colour(1.0f, 0.90f, 0.65f);
+        glm::vec3 output_colour;
+
+        // Determine default base colour
+        glm::vec3 ambient_factor = glm::vec3(0.05f, 0.05f, 0.05f);
+        glm::vec3 ambient_colour = glm::vec3(1.0f, 1.0f, 1.0f);
+        baseColour = baseColour * (photon_radiance + light_factor*light_colour + ambient_factor*ambient_colour/*+ SpecularFactor*/);
+
+        if (triangles[closest_intersect.index].hasMaterial()) {
+            Material* material = triangles[closest_intersect.index].getMaterial();
+            switch (material->getType()) {
+
+                /*default:
+                case MaterialType::NORMAL: {
+                    // If normal, just output the base colour and the photon gather properties
+                    output_colour = baseColour * (photon_radiance + light_factor*light_colour /*+ SpecularFactor*//*);
+                } break;*/
+
+                case MaterialType::REFLECTIVE:
+                {
+                    // send out a reflection ray, and combine with the current base colour at this position
+                    // TODO: alter the sent out ray to create glossiness
+                    glm::vec3 refl_dir = glm::reflect(direction, glm::normalize(surface_normal));
+                    glm::vec3 glossy_dir = MATH::CosineWeightedHemisphereDirection(surface_normal);
+
+                    refl_dir = glm::mix(refl_dir, glossy_dir, 1.0f - material->getGlossiness());
+                    glm::vec3 refl_ray_pos = closest_intersect.position + refl_dir*0.00001f;
+
+                    // Get reflection colour
+                    glm::vec3 reflect_colour = Trace(triangles, refl_ray_pos, refl_dir, photon_map, scene, photon_mapper, depth + 1);
+
+
+                    // Combine reflect colour with base colour by factor
+                    output_colour = glm::mix(reflect_colour, baseColour, 1.0f - material->getReflectionFactor());
+                } break;
+
+
+                case MaterialType::REFRACTIVE:
+                {
+                    // SEND OUT A RAY INSIDE A MEDIUM
+                    float refractive_index_air = 1.00003f;
+                    float refractive_index_material = material->getRefractiveIndex();
+                    float eta = 1.0;
+
+                    // If entering triangle, eta = refractive_index_air/refractive_index_material, else eta = refractive_index_material/refractive_index_air
+                    if (glm::dot(glm::normalize(surface_normal), glm::normalize(direction)) < 0.0) {
+                        eta = refractive_index_air / refractive_index_material;
+                    } else {
+                        eta = refractive_index_material / refractive_index_air;
+                    }
+                    eta = 1.0f;
+                    glm::vec3 refr_dir = glm::normalize(glm::refract(glm::normalize(direction), glm::normalize(surface_normal), eta));
+                    glm::vec3 refr_ray_pos = closest_intersect.position + refr_dir*0.0001f;
+
+                    glm::vec3 refract_colour = Trace(triangles, refr_ray_pos, refr_dir, photon_map, scene, photon_mapper, depth + 1);
+                    output_colour = refract_colour;
+                    //output_colour = Trace(triangles, closest_intersect.position + refr_dir*0.0001f, refr_dir, photon_map, scene, photon_mapper, depth + 1);
+                } break;
+
+            }
+        } else {
+            // If no special material properties
+            output_colour = baseColour;
+        }
+
+
+        //return (surface_normal + glm::vec3(1.0)) / 2.0f;
+        //return (combined_normal +glm::vec3(1.0))/2.0f;
+
+        return output_colour;
+    }
+    return color_buffer;
 }
-
-/*bool LoadBMP(const char *fileName) {
-	FILE *file;
-	unsigned char header[54];
-	unsigned int dataPos;
-	unsigned int size;
-	unsigned int width, height;
-	unsigned char *data;
-
-
-	file = fopen(fileName, "rb");
-
-	if (file == NULL) {
-		//MessageBox(NULL, L"Error: Invaild file path!", L"Error", MB_OK);
-		return false;
-	}
-
-	if (fread(header, 1, 54, file) != 54) {
-		//MessageBox(NULL, L"Error: Invaild file!", L"Error", MB_OK);
-		return false;
-	}
-
-	if (header[0] != 'B' || header[1] != 'M') {
-		//MessageBox(NULL, L"Error: Invaild file!", L"Error", MB_OK);
-		return false;
-	}
-
-	dataPos = *(int*)&(header[0x0A]);
-	size = *(int*)&(header[0x22]);
-	width = *(int*)&(header[0x12]);
-	height = *(int*)&(header[0x16]);
-
-	if (size == NULL)
-		size = width * height * 3;
-	if (dataPos == NULL)
-		dataPos = 54;
-
-	data = new unsigned char[size];
-
-	fread(data, 1, size, file);
-
-	fclose(file);
-}*/

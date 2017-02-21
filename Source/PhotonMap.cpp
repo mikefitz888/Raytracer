@@ -55,7 +55,7 @@ namespace photonmap {
 
 		Intersection closest, shade;
 		for (int i = 0; i < number_of_photons; i++) {
-			glm::vec3 origin = glm::linearRand(glm::vec3(-0.2, -0.80f, -0.2), glm::vec3(0.2, -0.95f, 0.2));
+			glm::vec3 origin = glm::linearRand(glm::vec3(-0.35, -0.80f, -0.35), glm::vec3(0.35, -0.95f, 0.35));
 			float u = Rand(); float v = 2 * M_PI * Rand();
 			//glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?
 			glm::vec3 direction = glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
@@ -127,6 +127,9 @@ namespace photonmap {
 			}
 		}
 
+        
+
+
 		//Weight photons
 		for (auto photon : direct_photons.photons) {
 			photon.color /= (direct_photons.size() + indirect_photons.size());
@@ -134,6 +137,29 @@ namespace photonmap {
 		for (auto photon : indirect_photons.photons) {
 			photon.color /= (direct_photons.size() + indirect_photons.size());
 		}
+
+        // ******************************************************************************** //
+        // CAUSTIC STEP
+        /*
+            Thoughts:
+            - First hit photons ignored, must have passed through a refractive medium first?
+        
+        */
+        auto& triangles = scene.getTrianglesRef();
+        for (int i = 0; i < number_of_photons; i++) {
+            glm::vec3 origin = glm::linearRand(glm::vec3(-0.35, -0.80f, -0.35), glm::vec3(0.35, -0.95f, 0.35));
+            float u = Rand(); float v = 2 * M_PI * Rand();
+            //glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?
+            glm::vec3 direction = glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+            Ray ray(origin, direction);
+
+            
+            if (ray.closestIntersection(triangles, closest)) {
+
+            }
+
+        }
+
 
 
 		/*for (int i = 0; i < number_of_photons; i++) {
@@ -176,40 +202,21 @@ namespace photonmap {
 		printf("Gathered %d photons of direct data.\n", direct_photons.size());
 		printf("Gathered %d photons of indirect data.\n", indirect_photons.size());
 		printf("Gathered %d photons of shadow data.\n", shadow_photons.size());
+        printf("Gathered %d photons of caustic data.\n", shadow_photons.size());
 	}
-	
-	/*void PhotonMapper::render(SDL_Surface* screen){
-		for (auto pi : this->gathered_photons) {
-			glm::vec3 pos = pi.position;
-
-			// Project position to 2D:
-			float xScr = pos.x / pos.z;
-			float yScr = pos.y / pos.z;
-
-			// Scale and bias
-			xScr += 1;
-			yScr += 1;
-			xScr *= 0.5;
-			yScr *= 0.5;
-			xScr *= 500;
-			yScr *= 500;
-
-			// Draw point
-			//PutPixelSDL(screen, xScr, yScr, pi.color);
-
-		}
-	}*/
 
 	PhotonMap::PhotonMap(PhotonMapper* _p) : p(*_p), 
 		direct_photon_map(3, (_p->direct_photons), nanoflann::KDTreeSingleIndexAdaptorParams(10)),
 		indirect_photon_map(3, (_p->indirect_photons), nanoflann::KDTreeSingleIndexAdaptorParams(10)),
-		shadow_photon_map(3, (_p->shadow_photons), nanoflann::KDTreeSingleIndexAdaptorParams(10))
+		shadow_photon_map(3, (_p->shadow_photons), nanoflann::KDTreeSingleIndexAdaptorParams(10)),
+        caustic_photon_map(3, (_p->caustic_photons), nanoflann::KDTreeSingleIndexAdaptorParams(10))
 	{
 		//photon_map(3, points, nanoflann::KDTreeSingleIndexAdaptorParams(10)), p(points)
 		//photon_tree_t photon_map(3, p, nanoflann::KDTreeSingleIndexAdaptorParams(10));
 		direct_photon_map.buildIndex();
 		indirect_photon_map.buildIndex();
 		shadow_photon_map.buildIndex();
+        caustic_photon_map.buildIndex();
 		//printf("Size of photon_map = %d", photon_map.size());
 	}
 
@@ -233,6 +240,13 @@ namespace photonmap {
 		params.sorted = false;
 		const size_t count = shadow_photon_map.radiusSearch(point, radius, indices, params);
 	}
+
+    void PhotonMap::getCausticPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices) {
+        const float point[3] = { pos.x, pos.y, pos.z };
+        nanoflann::SearchParams params;
+        params.sorted = false;
+        const size_t count = caustic_photon_map.radiusSearch(point, radius, indices, params);
+    }
 
 	//void PhotonMap::getCausticPhotonsRadius() {}
 

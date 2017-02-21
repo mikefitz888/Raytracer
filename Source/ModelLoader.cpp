@@ -114,7 +114,7 @@ namespace model {
 		}
 	}
 
-	void Model::parseMaterialLib(std::istringstream& lib){
+	/*void Model::parseMaterialLib(std::istringstream& lib){
 		std::string file_name;
 		lib >> file_name;
 		std::ifstream file;
@@ -154,5 +154,5 @@ namespace model {
 		std::string material_name;
 		material >> material_name;
 		active_material = material_map[material_name];
-	}
+	}*/
 }

@@ -37,6 +37,7 @@ namespace photonmap {
 		photon_tree_t direct_photon_map;
 		photon_tree_t indirect_photon_map;
 		photon_tree_t shadow_photon_map;
+        photon_tree_t caustic_photon_map;
 
 		PhotonMapper& p;
 	public:
@@ -44,7 +45,8 @@ namespace photonmap {
 		void getDirectPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices);
 		void getIndirectPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices);
 		void getShadowPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices);
-		//void getCausticPhotonsRadius();
+        void getCausticPhotonsRadius(const glm::vec3& pos, const float radius, std::vector< std::pair<size_t, float> >& indices);
+
 		bool nearestDirectPhotonInRange(const glm::vec3& pos, const float radius, size_t& index);
 	};
 
@@ -113,12 +115,14 @@ namespace photonmap {
 		PhotonInfoWrapper direct_photons;
 		PhotonInfoWrapper indirect_photons;
 		PhotonInfoWrapper shadow_photons;
+        PhotonInfoWrapper caustic_photons;
 
 	
 		inline std::vector<PhotonInfo>& getGatheredPhotons() { return gathered_photons; }
 		inline std::vector<PhotonInfo>& getDirectPhotons() { return direct_photons.photons; }
 		inline std::vector<PhotonInfo>& getIndirectPhotons() { return indirect_photons.photons; }
 		inline std::vector<PhotonInfo>& getShadowPhotons() { return shadow_photons.photons; }
+        inline std::vector<PhotonInfo>& getCausticPhotons() { return caustic_photons.photons; }
 
 		inline PhotonMapper(model::Scene& scene, unsigned int photon_count = 1000, unsigned int bounces = 3) : number_of_photons(photon_count), number_of_bounces(bounces) {
 			photons.reserve(number_of_photons);
