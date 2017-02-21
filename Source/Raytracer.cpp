@@ -68,6 +68,19 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth=0);
 
 int main(int argc, char** argv) {
+
+   /* glm::vec3 vector_a(0.245, 0.454, 0.6568);
+    vector_a = glm::normalize(vector_a);
+    glm::vec3 vector_b = glm::refract(glm::normalize(vector_a), glm::normalize(-glm::vec3(0.4, 0.5, 0.6)), 0.7f);
+    glm::vec3 vector_c = glm::refract(glm::normalize(vector_b), glm::normalize(-glm::vec3(0.4, 0.5, 0.6)), 1.0f/0.7f);
+
+    std::cout << vector_a.x << " " << vector_a.y << " " << vector_a.z << std::endl;
+    std::cout << vector_b.x << " " << vector_b.y << " " << vector_b.z << std::endl;
+    std::cout << vector_c.x << " " << vector_c.y << " " << vector_c.z << std::endl;
+
+    int a;
+    std::cin >> a;
+    */
 	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
 	t = SDL_GetTicks();	// Set start value for timer.
 
@@ -626,13 +639,38 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
                     float eta = 1.0;
 
                     // If entering triangle, eta = refractive_index_air/refractive_index_material, else eta = refractive_index_material/refractive_index_air
-                    if (glm::dot(glm::normalize(surface_normal), glm::normalize(direction)) < 0.0) {
+                   /* if (glm::dot(glm::normalize(surface_normal), glm::normalize(direction)) < 0.0) {
                         eta = refractive_index_air / refractive_index_material;
                     } else {
                         eta = refractive_index_material / refractive_index_air;
                     }
-                    eta = 1.0f;
-                    glm::vec3 refr_dir = glm::normalize(glm::refract(glm::normalize(direction), glm::normalize(surface_normal), eta));
+                    glm::vec3 direction_f = glm::vec3((float)direction.x, (float)direction.y, (float)direction.z);
+                    glm::vec3 surface_normal_f = glm::vec3((float)surface_normal.x, (float)surface_normal.y, (float)surface_normal.z);*/
+                    
+                    //eta = 1.0f;
+
+                    glm::vec3 refr_dir;
+                    if (glm::dot(glm::normalize(surface_normal), glm::normalize(direction)) < 0.0) {
+                        eta = refractive_index_air / refractive_index_material;
+                        refr_dir = glm::normalize(glm::refract(glm::normalize(direction), glm::normalize(surface_normal), eta));
+                    }
+                    else {
+                        eta = refractive_index_material / refractive_index_air;
+                        refr_dir = -glm::normalize(glm::refract(glm::normalize(-direction), glm::normalize(surface_normal), eta));
+                    }
+                   
+                 /*   std::cout << "Nml: "<< surface_normal.x << " " << surface_normal.y << " " << surface_normal.z << std::endl;
+                    std::cout << direction.x << " " << direction.y << " " << direction.z << std::endl;
+                    std::cout << refr_dir.x << " " << refr_dir.y << " " << refr_dir.z << std::endl;*/
+                    
+                    /*if (direction != refr_dir) {
+                        refr_dir = glm::normalize(glm::refract(glm::normalize(direction), glm::normalize(-surface_normal), eta));
+                    }*/
+
+                   // char a;
+                    //std::cin >> a;
+
+                    //refr_dir = direction+glm::vec3(0.25f);
                     glm::vec3 refr_ray_pos = closest_intersect.position + refr_dir*0.0001f;
 
                     glm::vec3 refract_colour = Trace(triangles, refr_ray_pos, refr_dir, photon_map, scene, photon_mapper, depth + 1);
