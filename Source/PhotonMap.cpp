@@ -55,6 +55,9 @@ namespace photonmap {
 
 		Intersection closest, shade;
 		for (int i = 0; i < number_of_photons; i++) {
+            if (i % (number_of_photons/10) == 0) {
+                std::cout << "     " << i << " of " << number_of_photons << " generated" << std::endl;
+            }
 			glm::vec3 origin = glm::linearRand(glm::vec3(-0.35, -0.80f, -0.35), glm::vec3(0.35, -0.95f, 0.35));
 			float u = Rand(); float v = 2 * M_PI * Rand();
 			//glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?
@@ -145,8 +148,15 @@ namespace photonmap {
             - First hit photons ignored, must have passed through a refractive medium first?
         
         */
+        std::cout << "GENERATING CAUSTIC MAP: " << std::endl;
         auto& triangles = scene.getTrianglesRef();
+        number_of_photons *= 5;
         for (int i = 0; i < number_of_photons; i++) {
+
+            if (i % (number_of_photons / 10) == 0) {
+                std::cout << "     " << i << " of " << number_of_photons << " generated" << std::endl;
+            }
+
             glm::vec3 origin = glm::linearRand(glm::vec3(-0.35, -0.80f, -0.35), glm::vec3(0.35, -0.95f, 0.35));
             float u = Rand(); float v = 2 * M_PI * Rand();
             //glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?

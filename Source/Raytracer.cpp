@@ -27,7 +27,7 @@
 
 #define _DOF_ENABLE_ false
 #define _AA_ENABLE false
-#define _AA_FACTOR 16.0f
+#define _AA_FACTOR 25.0f
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ false
 #define _PHOTON_MAPPING_ENABLE_ true
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
 	std::vector<Triangle> model = std::vector<Triangle>();
 	LoadTestModel(model);
 
-	model::Model m("sphere.obj");
+	model::Model m("torus.obj");
     // Assign the glass material to the model
     for (auto& t : *m.getFaces()) {
         t.setMaterial(glass_material);
@@ -590,12 +590,26 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
         /*
             Both photon mapping and caustics need to be turned on
         */
+        glm::vec3 caustic_factor(0.0, 0.0, 0.0);
         if (_PHOTON_MAPPING_ENABLE_&&_CAUSTICS_ENABLE_) {
             // TODO: Pull caustic data from photon map
+            std::vector<std::pair<size_t, float>> caustic_photons_in_range;
+            photon_map.getCausticPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE*0.01, caustic_photons_in_range);
 
+            glm::vec3 total_energy = glm::vec3(0.0);
+            for (auto pht : caustic_photons_in_range) {
+                size_t id = pht.first;
+                glm::vec3 energy = photon_mapper.caustic_photons.photons[id].color;
+                float distance = pht.second;
+
+                total_energy += energy;
+            }
+            total_energy /= 100;
+
+            caustic_factor = total_energy;
         }
 
-
+        // *********************************************************************** //
         // GET MATERIAL TYPE
         /*
           Depending on material type, we may send out new rays to pull reflection/refraction data
@@ -606,7 +620,7 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
         // Determine default base colour
         glm::vec3 ambient_factor = glm::vec3(0.05f, 0.05f, 0.05f);
         glm::vec3 ambient_colour = glm::vec3(1.0f, 1.0f, 1.0f);
-        baseColour = baseColour * (photon_radiance + light_factor*light_colour + ambient_factor*ambient_colour/*+ SpecularFactor*/);
+        baseColour = baseColour * (photon_radiance + light_factor*light_colour + ambient_factor*ambient_colour/*+ SpecularFactor*/) + caustic_factor;
 
         if (triangles[closest_intersect.index].hasMaterial()) {
             Material* material = triangles[closest_intersect.index].getMaterial();
