@@ -23,14 +23,14 @@
 
 //PARAMETERS
 #define PHOTON_GATHER_RANGE 0.1
-
+#define PREVIEW_RENDER true
 
 #define _DOF_ENABLE_ false
 #define _AA_ENABLE false
-#define _AA_FACTOR 9.0f
+#define _AA_FACTOR 16.0f
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ false
-#define _PHOTON_MAPPING_ENABLE_ false
+#define _PHOTON_MAPPING_ENABLE_ true
 #define _CAUSTICS_ENABLE_ true
 #define _SOFT_SHADOWS false
 #define _SOFT_SHADOW_SAMPLES 100
@@ -340,6 +340,12 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 
 			}
 			PutPixelSDL(screen, x, y, color);
+#if PREVIEW_RENDER == 1
+            if (SDL_MUSTLOCK(screen))
+                SDL_UnlockSurface(screen);
+
+            SDL_UpdateRect(screen, 0, 0, 0, 0);
+#endif
 		}
 		printf("Progress: %f \n", ((float)y / (float)SCREEN_HEIGHT) * 100.0f);
 	}
@@ -354,7 +360,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 //Returns colour of nearest intersecting triangle
 glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth) {
     // Recursion depth limit breaker:
-    if (depth > 5) { std::cout << "RECURSION DEPTH EXCEEDED" << std::endl; return glm::vec3(0.0f, 0.0f, 0.0f); }
+    if (depth > 5) { /*std::cout << "RECURSION DEPTH EXCEEDED" << std::endl;*/ return glm::vec3(0.0f, 0.0f, 0.0f); }
 
 
     Intersection closest_intersect;

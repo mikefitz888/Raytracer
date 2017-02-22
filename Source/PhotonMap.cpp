@@ -153,9 +153,72 @@ namespace photonmap {
             glm::vec3 direction = glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
             Ray ray(origin, direction);
 
-            
-            if (ray.closestIntersection(triangles, closest)) {
+            // Colour
+            glm::vec3 radiance = glm::vec3(1.0f);
 
+            
+            // We only want to allow photons to refract a number of times
+            bool hasRefracted = false;
+
+            const int RAY_DEPTH_MAX = 10;
+            for (int ray_depth = 0; ray_depth < RAY_DEPTH_MAX; ray_depth++) {
+
+
+                if (ray.closestIntersection(triangles, closest)) {
+                    Triangle triangle  = scene.getTrianglesRef()[closest.index];
+                    Material *material = triangle.getMaterial();
+                    if (triangle.hasMaterial() && material->getType() != MaterialType::NORMAL) {
+
+                        // Calculate triangle surface normal (using barycentric coordinates)
+                        glm::vec3 barycentric_coords = triangle.calculateBarycentricCoordinates(closest.position);
+                        glm::vec3 surface_normal     = (triangle.n0*barycentric_coords.x + triangle.n1*barycentric_coords.y + triangle.n2*barycentric_coords.z);
+
+                        
+                        switch (material->getType()) {
+
+                            // REFRACTIVE
+                            case MaterialType::REFRACTIVE: {
+
+                                // DETERMINE NEW REFRACTED RAY
+                                float refractive_index_air = 1.00003f;
+                                float refractive_index_material = material->getRefractiveIndex();
+                                float eta = 1.0;
+
+                                glm::vec3 refr_dir;
+                                if (glm::dot(glm::normalize(surface_normal), glm::normalize(direction)) < 0.0) {
+                                    eta = refractive_index_air / refractive_index_material;
+                                    refr_dir = glm::normalize(glm::refract(glm::normalize(direction), glm::normalize(surface_normal), eta));
+                                }
+                                else {
+                                    eta = refractive_index_material / refractive_index_air;
+                                    refr_dir = -glm::normalize(glm::refract(glm::normalize(-direction), glm::normalize(surface_normal), eta));
+                                }
+
+                                glm::vec3 refr_ray_pos = closest.position + refr_dir*0.0001f;
+
+                                // Set next ray properties
+                                ray.origin    = refr_ray_pos;
+                                ray.direction = refr_dir;
+
+                                hasRefracted = true;
+                                continue;
+                                } break;
+
+                            // REFLECTIVE
+                            case MaterialType::REFLECTIVE: {
+
+                                } break;
+                        }
+                    }
+                    else {
+                        // HITS A NORMAL DIFFUSE SURFACE (ABSORB if refracted before)
+                        if (hasRefracted) {
+                            caustic_photons.emplace_back(radiance, closest.position, ray.direction);
+                        }
+                        ray_depth = RAY_DEPTH_MAX;
+                        continue;
+                    }
+                }
             }
 
         }

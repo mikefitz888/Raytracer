@@ -73,7 +73,7 @@ public:
 	glm::vec3 n0, n1, n2;
 
 	//Optional Parameters
-    Material *material;
+    Material *material = nullptr;
 
 	glm::vec3 normal;
 	glm::vec3 color;

@@ -13,6 +13,10 @@
 // -1 <= y <= +1
 // -1 <= z <= +1
 void LoadTestModel(std::vector<Triangle>& triangles) {
+
+    //Material *metal_material = new Material();
+    //metal_material->materialSetTypeReflective(0.75f, 0.85f);
+
 	using glm::vec3;
 	using glm::vec2;
 
@@ -62,8 +66,16 @@ void LoadTestModel(std::vector<Triangle>& triangles) {
 	triangles.push_back(t2);
 
 	//Floor
-	triangles.push_back(Triangle(C, B, A, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(C, D, B, white, uv0_0, uv1_0, uv1_1));
+    Triangle ta(C, B, A, white, uv0_0, uv1_1, uv0_1);
+    Triangle tb(C, D, B, white, uv0_0, uv1_0, uv1_1);
+
+    //ta.setMaterial(metal_material);
+    //tb.setMaterial(metal_material);
+
+	triangles.push_back(ta);
+	triangles.push_back(tb);
+
+    
 
 	// Left wall
 	triangles.push_back(Triangle(C, A, E, red, uv1_1, uv0_1, uv0_0));
