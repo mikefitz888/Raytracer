@@ -30,9 +30,10 @@ namespace model {
 
     // OCTREE
     class Octree {
-        static const int MAX_OCTREE_DEPTH = 4;
+        static const int MAX_OCTREE_DEPTH = 6;
 
-        int  depth = 0;
+        int depth = 0;
+        int child_count = 0;
         AABB bounding_box;
         Octree* parent;
         Octree* children[8];             // Octree node

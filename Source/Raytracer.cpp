@@ -26,14 +26,14 @@
 #define PREVIEW_RENDER true
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE false
+#define _AA_ENABLE true
 #define _AA_FACTOR 16.0f
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ false
 #define _PHOTON_MAPPING_ENABLE_ false
 #define _CAUSTICS_ENABLE_ false
-#define _SOFT_SHADOWS false
-#define _SOFT_SHADOW_SAMPLES 50
+#define _SOFT_SHADOWS true
+#define _SOFT_SHADOW_SAMPLES 5
 
 
 //VS14 FIX
@@ -88,10 +88,10 @@ int main(int argc, char** argv) {
     // Create materials
     default_material = new Material();
     glass_material = new Material();
-    glass_material->materialSetTypeRefractive(1.33f);
+    glass_material->materialSetTypeRefractive(1.5f);
 
     metal_material = new Material();
-    metal_material->materialSetTypeReflective(1.0f, 1.0f);
+    metal_material->materialSetTypeReflective(0.75f, 0.50f);
 
 
     // Load models
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
     cornell_box.setUseOptimisationStructure(false);
     
 
-	model::Model m("water.obj");
+	model::Model m("dragon.obj");
     //m.setUseOptimisationStructure(false);
     // Assign the glass material to the model
     for (auto& t : *m.getFaces()) {
@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
     
     scene.addModel(&cornell_box);
     scene.addModel(&m); // Bench
-	m.calculateNormals(); // <-- need this as atm we aren't using vertex normals
+	
 	model::LightSource basic_light(glm::vec3(0.0, -0.85, 0.0), glm::vec3(0, 1.0, 0), 8);
 	scene.addLight(basic_light);
 
@@ -160,27 +160,27 @@ int main(int argc, char** argv) {
 		keystate = SDL_GetKeyState(0);
 		if (keystate[SDLK_UP]) {
 			// Move camera forward
-			campos.z += 0.025;
+			campos.z += 0.005;
 		}
 		if (keystate[SDLK_DOWN]) {
 			// Move camera backward
-			campos.z -= 0.025;
+			campos.z -= 0.005;
 		}
 		if (keystate[SDLK_LEFT]) {
 			// Move camera to the left
-			campos.x -= 0.025;
+			campos.x -= 0.005;
 		}
 		if (keystate[SDLK_RIGHT]) {
 			// Move 
-			campos.x += 0.025;
+			campos.x += 0.005;
 		}
 		if (keystate[SDLK_PAGEUP]) {
 			// Move camera to the left
-			campos.y -= 0.025;
+			campos.y -= 0.005;
 		}
 		if (keystate[SDLK_PAGEDOWN]) {
 			// Move 
-			campos.y += 0.025;
+			campos.y += 0.005;
 		}
 		if (keystate[SDLK_SPACE]) {
 			run = false;
@@ -195,9 +195,9 @@ int main(int argc, char** argv) {
 		// TEMP DEBUG RENDER PHOTONS
 
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getDirectPhotons();
-		std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
+		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getShadowPhotons(); SDL_FillRect(screen, NULL, 0xFFFFFF);
-        //std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getCausticPhotons();
+        std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getCausticPhotons();
 
 		//printf("\n \nPHOTONS: %d \n", photoninfo.size());
 		int count = 0;
@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
 
 			// Draw point (only if the point isn't behind the camera, otherwise we get weird wrapping)
 			if ((pos.z - campos.z) > 0.0) {
-				PutPixelSDL(screen, xScr, yScr, pi.color*10.0f);
+				PutPixelSDL(screen, xScr, yScr, pi.color*100.0f);
 			}
 			count++;
 		}

@@ -131,10 +131,12 @@ namespace model {
         }
     }
     void Model::generateOctree() {
+        std::cout << "Generating Octree for model.." << std::endl;
         this->octree = new Octree(this->bounding_box, nullptr);
         this->octree->fill(*this->getFaces());
         this->octree->split();
         this->use_optimising_structure = true;
+        std::cout << "..Octree generated" << std::endl;
     }
 
     bool Model::hasOctree() {
@@ -235,6 +237,9 @@ namespace model {
         glm::vec3 mid_point = (this->bounding_box.min+ this->bounding_box.max)*0.5f;
 
         int i = 0; 
+        bool canSplit[8];
+        int splitChildren = 0;
+
         for (float x = 0; x < 1; x += 0.5) {
             for (float y = 0; y < 1; y += 0.5) {
                 for (float z = 0; z < 1; z += 0.5) {
@@ -255,16 +260,42 @@ namespace model {
                     if (octree->getTriangleCount() > 0) {
                         // If the segment has triangles, keep reference
                         this->children[i] = octree;
-                        octree->split();
+                        splitChildren++;
+                        //octree->split();
+                        canSplit[i] = true;
                     } else {
 
                         // segment is empty, delete it
                         this->children[i] = nullptr;
                         delete octree;
+                        canSplit[i] = false;
                     }
 
                     // Increment i
                     i++;
+                }
+            }
+        }
+
+        // Split children after
+        if (splitChildren > 0) {
+
+            // If we know we have child nodes, we can free our memory before processing children
+            this->triangles.clear();
+            this->triangles.shrink_to_fit();
+
+            // Split children into further subsections
+            for (int i = 0; i < 8; i++) {
+                if (canSplit[i]) {
+                    this->children[i]->split();
+                }
+            }
+
+            // Count children
+            child_count = 0;
+            for (int i = 0; i < 8; i++) {
+                if (children[i] != nullptr) {
+                    child_count++;
                 }
             }
         }
@@ -366,23 +397,18 @@ namespace model {
 
     void Octree::getIntersectingSections(glm::vec3 ray_orig, glm::vec3 ray_inv_dir, std::vector<std::vector<Triangle>*> &storage) {
 
-        // Exit if there are no triangles
-        if (this->getTriangleCount() == 0) {
-            return;
+        // Exit if we are at the lowest level and there are no triangles
+        if (this->depth == MAX_OCTREE_DEPTH) {
+            if (this->getTriangleCount() == 0) return;
+        } else {
+            // Or, if we are at a higher level and there are no children
+            if (this->child_count == 0) return;
         }
 
         // Check if ray intersects with us
         Ray ray(ray_orig, ray_inv_dir);
         if (!ray.ray_aabb_intersect(ray_orig, ray_inv_dir, this->bounding_box)) {
             return;
-        }
-
-        // Check if we have any children
-        int child_count = 0;
-        for (int i = 0; i < 8; i++) {
-            if (children[i] != nullptr) {
-                child_count++;
-            }
         }
 
         // If child count is 0, we are at the lowest level:

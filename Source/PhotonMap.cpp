@@ -150,7 +150,7 @@ namespace photonmap {
         */
         std::cout << "GENERATING CAUSTIC MAP: " << std::endl;
         auto& triangles = scene.getTrianglesRef();
-        //number_of_photons *= 5;
+        number_of_photons *= 10;
         for (int i = 0; i < number_of_photons; i++) {
 
             if (i % (number_of_photons / 10) == 0) {
@@ -170,18 +170,19 @@ namespace photonmap {
             // We only want to allow photons to refract a number of times
             bool hasRefracted = false;
 
-            const int RAY_DEPTH_MAX = 10;
+            const int RAY_DEPTH_MAX = 5;
             for (int ray_depth = 0; ray_depth < RAY_DEPTH_MAX; ray_depth++) {
 
 
                 if (ray.closestIntersection(scene, closest)) {
                     //Triangle triangle  = scene.getTrianglesRef()[closest.index];
                     Material *material = closest.triangle->getMaterial();
-                    if (closest.triangle->hasMaterial() && material->getType() != MaterialType::NORMAL) {
 
-                        // Calculate triangle surface normal (using barycentric coordinates)
-                        glm::vec3 barycentric_coords = closest.triangle->calculateBarycentricCoordinates(closest.position);
-                        glm::vec3 surface_normal     = (closest.triangle->n0*barycentric_coords.x + closest.triangle->n1*barycentric_coords.y + closest.triangle->n2*barycentric_coords.z);
+                    // Calculate triangle surface normal (using barycentric coordinates)
+                    glm::vec3 barycentric_coords = closest.triangle->calculateBarycentricCoordinates(closest.position);
+                    glm::vec3 surface_normal = (closest.triangle->n0*barycentric_coords.x + closest.triangle->n1*barycentric_coords.y + closest.triangle->n2*barycentric_coords.z);
+
+                    if (closest.triangle->hasMaterial() && material->getType() != MaterialType::NORMAL) {
 
                         
                         switch (material->getType()) {
@@ -223,9 +224,24 @@ namespace photonmap {
                     else {
                         // HITS A NORMAL DIFFUSE SURFACE (ABSORB if refracted before)
                         if (hasRefracted) {
+
                             caustic_photons.emplace_back(radiance, closest.position, ray.direction);
-                        }
-                        ray_depth = RAY_DEPTH_MAX;
+                            //ray_depth = RAY_DEPTH_MAX; // <- stop tracing
+                            //hasRefracted = false;
+                        } /*else {*/
+                            // Reflect off of diffuse surface
+                            /*glm::vec3 reflection = surface_normal;
+                            reflection = glm::rotateX(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                            reflection = glm::rotateY(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                            reflection = glm::rotateZ(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                            //glm::vec3 reflection = glm::linearRand(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                            reflection = glm::normalize(reflection);
+
+                            // Set next ray properties
+                            ray.origin = closest.position + reflection*0.0001f;
+                            ray.direction = reflection;*/
+                        //}
+                        ray_depth = RAY_DEPTH_MAX; // <- stop tracing
                         continue;
                     }
                 }
