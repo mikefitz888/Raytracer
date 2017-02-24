@@ -29,7 +29,33 @@ namespace model {
     };
 
     // OCTREE
+    class Octree {
+        static const int MAX_OCTREE_DEPTH = 4;
 
+        int  depth = 0;
+        AABB bounding_box;
+        Octree* parent;
+        Octree* children[8];             // Octree node
+        std::vector<Triangle> triangles; // Triangles stored in each segment
+
+    public:
+        Octree(AABB bounding_box, Octree* parent);
+        void init();
+        void fill(const std::vector<Triangle>& triangles);
+        inline void addTriangle(Triangle t) { triangles.push_back(t); }
+        inline int  getTriangleCount() { return triangles.size(); }
+        inline int  getDepth() { return this->depth; }
+        inline std::vector<Triangle>* getTriangles() { return &this->triangles; }
+        void split();   // Splits the octree into subsequent children. If this section has no triangles, it gets ignored.
+        void getIntersectingSections(glm::vec3 ray_orig, glm::vec3 ray_inv_dir, std::vector<std::vector<Triangle>*> &storage);
+
+
+        static bool triangle_aabb_intersection(Triangle& t, AABB& aabb);
+        static bool aabb_aabb_intersection(AABB& a, AABB& b);
+        static void project(std::vector<glm::vec3> points, glm::vec3 axis, double &min, double &max);
+    };
+
+    // MODEL
 	class Model {
 		//std::vector<Material> materials;
 		//std::map<std::string, unsigned int> material_map;
@@ -44,23 +70,38 @@ namespace model {
 
         // Volume structures
         AABB bounding_box;
-
+        Octree* octree = nullptr;
+        bool use_optimising_structure = false;
 	private:
 		void parseVertex(std::istringstream& vertex);
 		void parseVertexNormal(std::istringstream& vertex_normal);
 		void parseVertexTexture(std::istringstream& vertex_texture);
 		void parseFace(std::istringstream& face);
         void CalculateBoundingVolume();
-        void generateOctree();
+        
+        
+        
         
 		//void parseUseMaterial(std::istringstream& material);
 		//void parseMaterialLib(std::istringstream& lib);
 	public:
-        bool use_optimising_structure = true;
+        
 
 		Model(std::string file_name);
         Model(std::vector<Triangle> triangles);
 		inline Model() {};
+        bool hasOctree();
+        Octree* getOctree();
+        void generateOctree();
+
+
+
+        inline void setUseOptimisationStructure(bool use) {
+            this->use_optimising_structure = use;
+        }
+        inline bool getUseOptimisationStructure() {
+            return this->use_optimising_structure;
+        }
 
 		/*inline Material& getActiveMaterial(){
 			return materials[active_material];

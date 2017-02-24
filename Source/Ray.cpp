@@ -30,56 +30,67 @@ bool Ray::closestIntersection(/*const std::vector<Triangle>& triangles*/const Sc
     for (auto* model : scene.models) {
 
         // Check for collision with model outer bounding box:
-        if (!model->use_optimising_structure || ray_aabb_intersect(this->origin, inverse_direction, model->getBoundingBox())) {
+        //if (!model->use_optimising_structure || ray_aabb_intersect(this->origin, inverse_direction, model->getBoundingBox())) {
 
-            // TODO: REPLACE WITH OCTREE
-            for (auto& triangle : *model->getFaces()) {
-                //i++;
-                glm::mat3 A(-direction, triangle.e1(), triangle.e2());
-                glm::vec3 b = origin - triangle.v0;
-
-                float detA = glm::determinant(A); //Calculating determinant of A for use in Cramer's rule
-
-                glm::mat3 A0 = A;
-                A0[0] = b;
-                float detA0 = glm::determinant(A0);
-                float t = detA0 / detA;
-
-                if (t >= 0) { //If t is negative then no intersection will occur
-                    //If this is a bottle-neck then maybe it's faster to: glm::inverse(A) * b;
-                    glm::mat3 A1 = A;
-                    A1[1] = b;
-                    float detA1 = glm::determinant(A1);
-                    float u = detA1 / detA;
-                    if (u < 0 || u > 1) continue;
-
-                    glm::mat3 A2 = A;
-                    A2[2] = b;
-                    float detA2 = glm::determinant(A2);
-                    float v = detA2 / detA;
-                    if (v < 0 || v > 1) continue;
+            
+            std::vector<std::vector<Triangle>*> triangle_arrays;
+            if (model->getUseOptimisationStructure()) {
+                model->getOctree()->getIntersectingSections(origin, inverse_direction, triangle_arrays);
+            } else {
+                triangle_arrays.push_back(model->getFaces());
+            }
 
 
+            // LOOP THROUGH TRIANGLES IN TRIANGLE ARRAY
+            for( std::vector<Triangle>* triangles : triangle_arrays){
+                for (auto& triangle : *triangles) {
+                    //i++;
+                    glm::mat3 A(-direction, triangle.e1(), triangle.e2());
+                    glm::vec3 b = origin - triangle.v0;
 
-                    //Check if intersection with triangle actually occurs
-                    if (u + v <= 1) {
-                        glm::vec3 intersect = triangle.v0 + u*triangle.e1() + v*triangle.e2();
-                        float distance = glm::distance(origin, intersect);
-                        if (distance < min_dist) {
+                    float detA = glm::determinant(A); //Calculating determinant of A for use in Cramer's rule
 
-                            // Check normal
-                            float factor = glm::dot(glm::normalize(direction), glm::normalize(triangle.normal));
-                            if (factor > 0.001 && !triangle.twoSided) { continue; }
+                    glm::mat3 A0 = A;
+                    A0[0] = b;
+                    float detA0 = glm::determinant(A0);
+                    float t = detA0 / detA;
 
-                            result = true;
-                            min_dist = distance;
-                            position = intersect;
-                            //index = i;
-                            triangle_result = &triangle;
+                    if (t >= 0) { //If t is negative then no intersection will occur
+                        //If this is a bottle-neck then maybe it's faster to: glm::inverse(A) * b;
+                        glm::mat3 A1 = A;
+                        A1[1] = b;
+                        float detA1 = glm::determinant(A1);
+                        float u = detA1 / detA;
+                        if (u < 0 || u > 1) continue;
+
+                        glm::mat3 A2 = A;
+                        A2[2] = b;
+                        float detA2 = glm::determinant(A2);
+                        float v = detA2 / detA;
+                        if (v < 0 || v > 1) continue;
+
+
+
+                        //Check if intersection with triangle actually occurs
+                        if (u + v <= 1) {
+                            glm::vec3 intersect = triangle.v0 + u*triangle.e1() + v*triangle.e2();
+                            float distance = glm::distance(origin, intersect);
+                            if (distance < min_dist) {
+
+                                // Check normal
+                                float factor = glm::dot(glm::normalize(direction), glm::normalize(triangle.normal));
+                                if (factor > 0.001 && !triangle.twoSided) { continue; }
+
+                                result = true;
+                                min_dist = distance;
+                                position = intersect;
+                                //index = i;
+                                triangle_result = &triangle;
+                            }
                         }
                     }
                 }
-            }
+            //}
         }
     }
 	if (result) {

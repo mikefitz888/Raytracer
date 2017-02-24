@@ -26,7 +26,7 @@
 #define PREVIEW_RENDER true
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE true
+#define _AA_ENABLE false
 #define _AA_FACTOR 16.0f
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ false
@@ -48,6 +48,8 @@ extern "C" FILE * __cdecl __iob_func(void) {
 using namespace std;
 using glm::vec3;
 using glm::mat3;*/
+using model::Octree;
+using model::AABB;
 
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES                                                            */
@@ -82,7 +84,6 @@ int main(int argc, char** argv) {
     std::cin >> a;
     */
 	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
-	t = SDL_GetTicks();	// Set start value for timer.
 
     // Create materials
     default_material = new Material();
@@ -98,19 +99,21 @@ int main(int argc, char** argv) {
 	std::vector<Triangle> model = std::vector<Triangle>();
 	LoadTestModel(model);
     model::Model cornell_box(model);
-    cornell_box.use_optimising_structure = false;
+    cornell_box.setUseOptimisationStructure(false);
+    
 
 	model::Model m("water.obj");
+    //m.setUseOptimisationStructure(false);
     // Assign the glass material to the model
     for (auto& t : *m.getFaces()) {
         t.setMaterial(glass_material);
     }
+    m.generateOctree();
 
 	model::Scene scene;
     
-	//scene.addTriangles(model); //For testing, actual use should involve type Model
     scene.addModel(&cornell_box);
-    //scene.addModel(&m); // Bench
+    scene.addModel(&m); // Bench
 	m.calculateNormals(); // <-- need this as atm we aren't using vertex normals
 	model::LightSource basic_light(glm::vec3(0.0, -0.85, 0.0), glm::vec3(0, 1.0, 0), 8);
 	scene.addLight(basic_light);
@@ -231,7 +234,8 @@ int main(int argc, char** argv) {
 
 	//while( NoQuitMessageSDL() )
 	{
-		Update();
+        t = SDL_GetTicks();	// Set start value for timer.
+		//Update();
 		//Draw(cornell_box.getFaces());
 #if _PHOTON_MAPPING_ENABLE_ == 1
 		Draw(scene, photon_map, photon_mapper);
@@ -240,6 +244,11 @@ int main(int argc, char** argv) {
         photonmap::PhotonMap photon_map(&photon_mapper);
         Draw(scene, photon_map, photon_mapper);
 #endif
+        // Compute frame time:
+        int t2 = SDL_GetTicks();
+        float dt = float(t2 - t);
+        t = t2;
+        std::cout << "Render time: " << dt << " ms." << std::endl;
 	}
 	std::cout << "Render Complete\n";
 	while (NoQuitMessageSDL());
@@ -250,10 +259,10 @@ int main(int argc, char** argv) {
 
 void Update() {
 	// Compute frame time:
-	int t2 = SDL_GetTicks();
+	/*int t2 = SDL_GetTicks();
 	float dt = float(t2 - t);
 	t = t2;
-	std::cout << "Render time: " << dt << " ms." << std::endl;
+	std::cout << "Render time: " << dt << " ms." << std::endl;*/
 }
 
 void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::PhotonMapper& photon_mapper) {

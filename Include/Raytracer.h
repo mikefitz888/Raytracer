@@ -24,6 +24,7 @@ struct Ray {
 	glm::vec3 getIntersection(Triangle triangle);
 	bool closestIntersection(/*const std::vector<Triangle>& triangles*/const Scene &scene, Intersection& closestIntersection);
     bool ray_aabb_intersect(glm::vec3 origin, glm::vec3 inverseDirection, const AABB box);
+
 };
 
 class Trace {
