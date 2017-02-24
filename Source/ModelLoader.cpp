@@ -21,6 +21,12 @@ namespace model {
 			}
 		}
 	}
+    Model::Model(std::vector<Triangle> triangles) {
+        this->triangles = triangles;
+        modified = false;
+        this->CalculateBoundingVolume();
+        this->generateOctree();
+    }
 
 	Model::Model(std::string file_name) {
 		std::string token;
@@ -50,6 +56,9 @@ namespace model {
 		else {
 			std::cerr << "Unable to open file: " << file_name << std::endl;
 		}
+        this->getFaces();
+        this->CalculateBoundingVolume();
+        this->generateOctree();
 	}
 
 	//Tested. Functioning correctly.
@@ -113,6 +122,16 @@ namespace model {
 #endif
 		}
 	}
+
+    void Model::CalculateBoundingVolume() {
+        for (auto &t : this->triangles) {
+            this->bounding_box.min = glm::min(glm::min(this->bounding_box.min, t.v0), glm::min(t.v1, t.v2));
+            this->bounding_box.max = glm::max(glm::max(this->bounding_box.max, t.v0), glm::max(t.v1, t.v2));
+        }
+    }
+    void Model::generateOctree() {
+
+    }
 
 	/*void Model::parseMaterialLib(std::istringstream& lib){
 		std::string file_name;

@@ -150,11 +150,12 @@ public:
 
 struct Intersection {
 	glm::vec3 position;
-	glm::vec3 color;
+	//glm::vec3 color;
     Material*  mat;
 	float distance;
-	int index;
-	Intersection(glm::vec3 pos, float dis, int ind) : position(pos), distance(dis), index(ind) {}
+	//int index;
+    Triangle* triangle;
+	Intersection(glm::vec3 pos, float dis, int ind, Triangle* t) : position(pos), distance(dis)/*, index(ind)*/,triangle(t) {}
 	Intersection(){}
 };
 

@@ -23,16 +23,12 @@ namespace model {
 		inline LightSource(glm::vec3 p, glm::vec3 d, float i = 1.0f, LTYPE t = LTYPE::POINT) : position(p), direction(d), intensity(i), type(t) {}
 	};
 
-	
+	// AABB
+    struct AABB {
+        glm::vec3 min, max;
+    };
 
-	/*class Material {
-	public:
-		glm::vec3 ambient_color, diffuse_color, specular_color;
-		float specular_exponent, transparency;
-		bitmap_image* ambient_map, diffuse_map, specular_map, bump_map; 
-		inline Material() {};
-
-	};*/
+    // OCTREE
 
 	class Model {
 		//std::vector<Material> materials;
@@ -46,15 +42,24 @@ namespace model {
 		std::vector<Triangle> triangles;
 		//std::vector<int> mtl_map;
 
+        // Volume structures
+        AABB bounding_box;
+
 	private:
 		void parseVertex(std::istringstream& vertex);
 		void parseVertexNormal(std::istringstream& vertex_normal);
 		void parseVertexTexture(std::istringstream& vertex_texture);
 		void parseFace(std::istringstream& face);
+        void CalculateBoundingVolume();
+        void generateOctree();
+        
 		//void parseUseMaterial(std::istringstream& material);
 		//void parseMaterialLib(std::istringstream& lib);
 	public:
+        bool use_optimising_structure = true;
+
 		Model(std::string file_name);
+        Model(std::vector<Triangle> triangles);
 		inline Model() {};
 
 		/*inline Material& getActiveMaterial(){
@@ -92,6 +97,9 @@ namespace model {
 			}
 			return &triangles;
 		}
+
+        // Get volume structures
+        inline AABB getBoundingBox() { return this->bounding_box; }
 	};
 
 	struct Scene {
@@ -104,14 +112,14 @@ namespace model {
 
 		inline std::vector<Triangle>& getTrianglesRef() { return triangles; }
 		inline void addModel(Model* model) {
-			//models.emplace_back(model);
+			models.emplace_back(model);
 			//addTriangles(*model->getFaces());
-			for (auto t : *model->getFaces()) {
+			/*for (auto& t : *model->getFaces()) {
 				t.ComputeNormal();
 				t.normal = -t.normal;
 				t.color = glm::vec3(1.0, 1.0, 1.0);
 				triangles.push_back(t);
-			}
+			}*/
 		}
 
 		inline void addLight(LightSource& light) {

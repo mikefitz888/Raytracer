@@ -26,14 +26,14 @@
 #define PREVIEW_RENDER true
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE false
-#define _AA_FACTOR 25.0f
+#define _AA_ENABLE true
+#define _AA_FACTOR 16.0f
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ false
-#define _PHOTON_MAPPING_ENABLE_ true
-#define _CAUSTICS_ENABLE_ true
+#define _PHOTON_MAPPING_ENABLE_ false
+#define _CAUSTICS_ENABLE_ false
 #define _SOFT_SHADOWS false
-#define _SOFT_SHADOW_SAMPLES 100
+#define _SOFT_SHADOW_SAMPLES 50
 
 
 //VS14 FIX
@@ -65,7 +65,7 @@ int t;
 
 void Update();
 void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::PhotonMapper& photon_mapper);
-glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth=0);
+glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth=0);
 
 int main(int argc, char** argv) {
 
@@ -87,28 +87,40 @@ int main(int argc, char** argv) {
     // Create materials
     default_material = new Material();
     glass_material = new Material();
-    glass_material->materialSetTypeRefractive(1.5f);
+    glass_material->materialSetTypeRefractive(1.33f);
 
     metal_material = new Material();
     metal_material->materialSetTypeReflective(1.0f, 1.0f);
 
 
     // Load models
+    
 	std::vector<Triangle> model = std::vector<Triangle>();
 	LoadTestModel(model);
+    model::Model cornell_box(model);
+    cornell_box.use_optimising_structure = false;
 
-	model::Model m("torus.obj");
+	model::Model m("water.obj");
     // Assign the glass material to the model
     for (auto& t : *m.getFaces()) {
         t.setMaterial(glass_material);
     }
 
 	model::Scene scene;
-	scene.addTriangles(model); //For testing, actual use should involve type Model
-	scene.addModel(&m); // Bench
+    
+	//scene.addTriangles(model); //For testing, actual use should involve type Model
+    scene.addModel(&cornell_box);
+    //scene.addModel(&m); // Bench
 	m.calculateNormals(); // <-- need this as atm we aren't using vertex normals
 	model::LightSource basic_light(glm::vec3(0.0, -0.85, 0.0), glm::vec3(0, 1.0, 0), 8);
 	scene.addLight(basic_light);
+
+    std::cout << "SCENE: " << std::endl;
+    for (auto m : scene.models) {
+        std::cout << "    MODEL: " << m->getFaces()->size() << " triangles" << std::endl;
+        std::cout << "              MIN: " << m->getBoundingBox().min.x << " " << m->getBoundingBox().min.y << " " << m->getBoundingBox().min.z << std::endl;
+        std::cout << "              MAX: " << m->getBoundingBox().max.x << " " << m->getBoundingBox().max.y << " " << m->getBoundingBox().max.z << std::endl;
+    }
 
 	//model::Model cornell_box = model::Model("Bench_WoodMetal.obj");
 	//model::Model cornell_box = model::Model("../model.txt");
@@ -180,9 +192,9 @@ int main(int argc, char** argv) {
 		// TEMP DEBUG RENDER PHOTONS
 
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getDirectPhotons();
-		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
+		std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getShadowPhotons(); SDL_FillRect(screen, NULL, 0xFFFFFF);
-        std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getCausticPhotons();
+        //std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getCausticPhotons();
 
 		//printf("\n \nPHOTONS: %d \n", photoninfo.size());
 		int count = 0;
@@ -270,7 +282,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 	float y_rotation = 0.0f;
 
 
-	#pragma omp parallel for
+	#pragma omp parallel for schedule(dynamic, 8)
 	for (int y = 0; y<SCREEN_HEIGHT; ++y) {
 		for (int x = 0; x<SCREEN_WIDTH; ++x) {
 
@@ -300,7 +312,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 						direction = glm::rotateY(direction, yr);
 
 						cameraClone += focus_point; //undo translation, effect is camera has rotated about focus_point
-						color_buffer += Trace(scene.getTrianglesRef(), cameraClone, direction, photon_map, scene, photon_mapper);
+						color_buffer += Trace(cameraClone, direction, photon_map, scene, photon_mapper);
 					}
 				}
 
@@ -326,7 +338,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 							direction = glm::rotateY(direction, cameraDirection.y);
 							direction = glm::rotateY(direction, cameraDirection.z);
 
-							colorAA += Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map, scene, photon_mapper);
+							colorAA += Trace(cameraPos, direction, photon_map, scene, photon_mapper);
 						}
 					}
 
@@ -335,18 +347,20 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 					color = colorAA / _AA_FACTOR;
 				}
 				else {
-					color = Trace(scene.getTrianglesRef(), cameraPos, direction, photon_map, scene, photon_mapper);
+					color = Trace(cameraPos, direction, photon_map, scene, photon_mapper);
 				}
 
 			}
 			PutPixelSDL(screen, x, y, color);
-#if PREVIEW_RENDER == 1
-            if (SDL_MUSTLOCK(screen))
-                SDL_UnlockSurface(screen);
-
-            SDL_UpdateRect(screen, 0, 0, 0, 0);
-#endif
 		}
+#if PREVIEW_RENDER == 1
+        if (SDL_MUSTLOCK(screen))
+            SDL_UnlockSurface(screen);
+
+        SDL_UpdateRect(screen, 0, 0, 0, 0);
+        if (SDL_MUSTLOCK(screen))
+            SDL_LockSurface(screen);
+#endif
 		printf("Progress: %f \n", ((float)y / (float)SCREEN_HEIGHT) * 100.0f);
 	}
 
@@ -358,17 +372,17 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 }
 
 //Returns colour of nearest intersecting triangle
-glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth) {
+glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth) {
     // Recursion depth limit breaker:
-    if (depth > 5) { /*std::cout << "RECURSION DEPTH EXCEEDED" << std::endl;*/ return glm::vec3(0.0f, 0.0f, 0.0f); }
+    if (depth > 50) { /*std::cout << "RECURSION DEPTH EXCEEDED" << std::endl;*/ return glm::vec3(0.0f, 0.0f, 0.0f); }
 
 
     Intersection closest_intersect;
     glm::vec3 color_buffer = glm::vec3(0.0f, 0.0f, 0.0f);
 
     Ray ray(cameraPos, direction);
-    if (ray.closestIntersection(triangles, closest_intersect)) {
-        glm::vec3 baseColour = closest_intersect.color;
+    if (ray.closestIntersection(scene, closest_intersect)) {
+        glm::vec3 baseColour = closest_intersect.triangle->color;
 
 
 
@@ -385,7 +399,7 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
                 between them, we can also give each vertex a uv coordinate (mapping to texture space) and use this same
                 math to map each point within a triangle to the correct point in uv-space.
         */
-        Triangle t = triangles[closest_intersect.index];
+        Triangle& t = *closest_intersect.triangle;
         glm::vec3 barycentric_coords = t.calculateBarycentricCoordinates(closest_intersect.position);
 
         glm::vec2 baseColourUV = t.uv0*barycentric_coords.x + t.uv1*barycentric_coords.y + t.uv2*barycentric_coords.z;
@@ -516,11 +530,11 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
             // 2) PHOTON DENSITY REDUCTION
             //total_colour_energy /= 200;
             total_colour_energy /= samples_colour_bleed;
-            total_light_energy /= 50;
+            total_light_energy /= 2;
             total_energy = (total_light_energy*total_colour_energy)/*0.5f*/;
 
             //photon_radiance = closest_intersect.color*total_energy;
-            photon_radiance = RENDERER::finalGather(closest_intersect.position, closest_intersect.index, /*triangles*/scene.getTrianglesRef(), photon_map, photon_mapper);
+            photon_radiance = RENDERER::finalGather(closest_intersect.position, closest_intersect.triangle, scene, photon_map, photon_mapper);
         }
 
         // SIMPLE LIGHTING
@@ -545,7 +559,7 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
                 Intersection closest_intersect2;
 
                 // If the ray intersects with something, and the distance to the intersecting object is closer than 
-                if (lightRay.closestIntersection(triangles, closest_intersect2)) {
+                if (lightRay.closestIntersection(scene, closest_intersect2)) {
                     if (closest_intersect2.distance < light_distance) {
                         light_factor_x = 0.0;
                     }
@@ -577,7 +591,7 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
             }
 
             // If the ray intersects with something, and the distance to the intersecting object is closer than 
-            if (lightRay.closestIntersection(triangles, closest_intersect2)) {
+            if (lightRay.closestIntersection(scene, closest_intersect2)) {
                 if (closest_intersect2.distance < light_distance) {
                     light_factor = 0.0;
                 }
@@ -594,7 +608,7 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
         if (_PHOTON_MAPPING_ENABLE_&&_CAUSTICS_ENABLE_) {
             // TODO: Pull caustic data from photon map
             std::vector<std::pair<size_t, float>> caustic_photons_in_range;
-            photon_map.getCausticPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE*0.01, caustic_photons_in_range);
+            photon_map.getCausticPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE*0.0025, caustic_photons_in_range);
 
             glm::vec3 total_energy = glm::vec3(0.0);
             for (auto pht : caustic_photons_in_range) {
@@ -604,10 +618,11 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
 
                 total_energy += energy;
             }
-            total_energy /= 100;
+            total_energy /= 80;
 
             caustic_factor = total_energy;
         }
+        caustic_factor = glm::pow(caustic_factor, glm::vec3(1.75f))*0.75f;
 
         // *********************************************************************** //
         // GET MATERIAL TYPE
@@ -622,8 +637,8 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
         glm::vec3 ambient_colour = glm::vec3(1.0f, 1.0f, 1.0f);
         baseColour = baseColour * (photon_radiance + light_factor*light_colour + ambient_factor*ambient_colour/*+ SpecularFactor*/) + caustic_factor;
 
-        if (triangles[closest_intersect.index].hasMaterial()) {
-            Material* material = triangles[closest_intersect.index].getMaterial();
+        if (t.hasMaterial()) {
+            Material* material = t.getMaterial();
             switch (material->getType()) {
 
                 /*default:
@@ -643,7 +658,7 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
                     glm::vec3 refl_ray_pos = closest_intersect.position + refl_dir*0.00001f;
 
                     // Get reflection colour
-                    glm::vec3 reflect_colour = Trace(triangles, refl_ray_pos, refl_dir, photon_map, scene, photon_mapper, depth + 1);
+                    glm::vec3 reflect_colour = Trace(refl_ray_pos, refl_dir, photon_map, scene, photon_mapper, depth + 1);
 
 
                     // Combine reflect colour with base colour by factor
@@ -693,7 +708,7 @@ glm::vec3 Trace(std::vector<Triangle>& triangles, glm::vec3 cameraPos, glm::vec3
                     //refr_dir = direction+glm::vec3(0.25f);
                     glm::vec3 refr_ray_pos = closest_intersect.position + refr_dir*0.0001f;
 
-                    glm::vec3 refract_colour = Trace(triangles, refr_ray_pos, refr_dir, photon_map, scene, photon_mapper, depth + 1);
+                    glm::vec3 refract_colour = Trace(refr_ray_pos, refr_dir, photon_map, scene, photon_mapper, depth + 1);
                     output_colour = refract_colour;
                     //output_colour = Trace(triangles, closest_intersect.position + refr_dir*0.0001f, refr_dir, photon_map, scene, photon_mapper, depth + 1);
                 } break;

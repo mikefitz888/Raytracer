@@ -69,13 +69,13 @@ namespace photonmap {
 			for (int bounce = 0; bounce < number_of_bounces; bounce++) {
 
 				//bounce == 0 => direct lighting => shoot shadow photons
-				if (ray.closestIntersection(scene.getTrianglesRef(), closest)) {
+				if (ray.closestIntersection(scene, closest)) {
 
 					
 
 					// determine intersection data
 					glm::vec3 intersection = closest.position;
-					glm::vec3 normal = scene.getTrianglesRef()[closest.index].getNormal();
+					glm::vec3 normal = /*scene.getTrianglesRef()[closest.index]*/closest.triangle->getNormal();
 					//glm::vec3 reflection = MATH::CosineWeightedHemisphereDirection(normal);;
 					glm::vec3 reflection = normal;
 					reflection = glm::rotateX(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
@@ -109,7 +109,7 @@ namespace photonmap {
 
 						//Add shadows
 						Ray shadow(intersection + 0.001f * ray.direction, ray.direction);
-						while (shadow.closestIntersection(scene.getTrianglesRef(), shade)) {
+						while (shadow.closestIntersection(scene, shade)) {
 							shadow_photons.emplace_back(glm::vec3(0), shade.position, ray.direction);
 							shadow.origin = shade.position + 0.001f * ray.direction;
 						}
@@ -120,7 +120,7 @@ namespace photonmap {
 					if (rand_color > 0.95) {
 						radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance);
 					} else {
-						radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance * closest.color);
+						radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance * closest.triangle->color);
 					}
 					
 					ray.origin = intersection + 0.001f*normal;
@@ -150,7 +150,7 @@ namespace photonmap {
         */
         std::cout << "GENERATING CAUSTIC MAP: " << std::endl;
         auto& triangles = scene.getTrianglesRef();
-        number_of_photons *= 5;
+        //number_of_photons *= 5;
         for (int i = 0; i < number_of_photons; i++) {
 
             if (i % (number_of_photons / 10) == 0) {
@@ -174,14 +174,14 @@ namespace photonmap {
             for (int ray_depth = 0; ray_depth < RAY_DEPTH_MAX; ray_depth++) {
 
 
-                if (ray.closestIntersection(triangles, closest)) {
-                    Triangle triangle  = scene.getTrianglesRef()[closest.index];
-                    Material *material = triangle.getMaterial();
-                    if (triangle.hasMaterial() && material->getType() != MaterialType::NORMAL) {
+                if (ray.closestIntersection(scene, closest)) {
+                    //Triangle triangle  = scene.getTrianglesRef()[closest.index];
+                    Material *material = closest.triangle->getMaterial();
+                    if (closest.triangle->hasMaterial() && material->getType() != MaterialType::NORMAL) {
 
                         // Calculate triangle surface normal (using barycentric coordinates)
-                        glm::vec3 barycentric_coords = triangle.calculateBarycentricCoordinates(closest.position);
-                        glm::vec3 surface_normal     = (triangle.n0*barycentric_coords.x + triangle.n1*barycentric_coords.y + triangle.n2*barycentric_coords.z);
+                        glm::vec3 barycentric_coords = closest.triangle->calculateBarycentricCoordinates(closest.position);
+                        glm::vec3 surface_normal     = (closest.triangle->n0*barycentric_coords.x + closest.triangle->n1*barycentric_coords.y + closest.triangle->n2*barycentric_coords.z);
 
                         
                         switch (material->getType()) {
@@ -231,6 +231,11 @@ namespace photonmap {
                 }
             }
 
+        }
+
+        for (auto& photon : caustic_photons.photons) {
+            photon.color /= (caustic_photons.size());
+            photon.color *= 100000.0f;
         }
 
 

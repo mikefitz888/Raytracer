@@ -110,7 +110,7 @@ void LoadTestModel(std::vector<Triangle>& triangles) {
 	
 
 	// Front
-	/*triangles.push_back(Triangle(E, B, A, white, uv0_0, uv1_1, uv0_1));
+	triangles.push_back(Triangle(E, B, A, white, uv0_0, uv1_1, uv0_1));
 	triangles.push_back(Triangle(E, F, B, white, uv0_0, uv1_0, uv1_1));
 
 	// Front
@@ -127,7 +127,7 @@ void LoadTestModel(std::vector<Triangle>& triangles) {
 
 	// TOP
 	triangles.push_back(Triangle(G, F, E, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(G, H, F, white, uv0_0, uv1_0, uv1_1));*/
+	triangles.push_back(Triangle(G, H, F, white, uv0_0, uv1_0, uv1_1));
 
 	// ---------------------------------------------------------------------------
 	// Tall block

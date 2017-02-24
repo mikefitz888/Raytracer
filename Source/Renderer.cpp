@@ -1,7 +1,7 @@
 #include "../Include/Renderer.h"
 
 namespace RENDERER {
-	vec3 deepGather(vec3 point, vec3 normal, std::vector<Triangle>& triangles, PhotonMap& photon_map, PhotonMapper& photon_mapper, size_t depth, size_t secondary_rays) {
+	vec3 deepGather(vec3 point, vec3 normal, model::Scene& scene, PhotonMap& photon_map, PhotonMapper& photon_mapper, size_t depth, size_t secondary_rays) {
 		if (depth == 0) {
 			//return photon map estimate
 			std::vector<std::pair<size_t, float>> direct_photons_in_range, shadow_photons_in_range, indirect_photons_in_range;
@@ -48,9 +48,9 @@ namespace RENDERER {
 		for (int i = 0; i < secondary_rays; i++) {
 			glm::vec3 ray_dir = MATH::CosineWeightedHemisphereDirection(normal);
 			Ray ray(point+ ray_dir*0.001f, ray_dir);
-			if (ray.closestIntersection(triangles, random)) {
-				vec3 weight = dot(ray.direction, normal) * random.color; //Experimental color bleeding
-				radiance += deepGather(random.position, triangles[random.index].getNormal(), triangles, photon_map, photon_mapper, depth-1, secondary_rays) * weight;
+			if (ray.closestIntersection(scene, random)) {
+				vec3 weight = dot(ray.direction, normal) * random.triangle->color; //Experimental color bleeding
+				radiance += deepGather(random.position, random.triangle->getNormal(), scene, photon_map, photon_mapper, depth-1, secondary_rays) * weight;
 				samples++;
 			}
 		}
@@ -58,17 +58,17 @@ namespace RENDERER {
 		//return radiance /= secondary_rays;
 	}
 
-	vec3 finalGather(vec3 point, size_t intersecting_triangle_id, std::vector<Triangle>& triangles, PhotonMap& photon_map, PhotonMapper& photon_mapper, size_t depth, size_t secondary_rays) {
+	vec3 finalGather(vec3 point, Triangle* triangle, model::Scene& scene, PhotonMap& photon_map, PhotonMapper& photon_mapper, size_t depth, size_t secondary_rays) {
 		Intersection random;
 		vec3 radiance(0.0f);
 		int samples = 0;
 		for (int i = 0; i < secondary_rays; i++) {
-			vec3 normal = triangles[intersecting_triangle_id].getNormal();
+			vec3 normal = triangle->getNormal();
 			glm::vec3 ray_dir = MATH::CosineWeightedHemisphereDirection(normal);
 			Ray ray(point+ ray_dir*0.001f, ray_dir);
-			if (ray.closestIntersection(triangles, random)) {
-				vec3 weight = dot(ray.direction, normal) * random.color;
-				radiance += deepGather(random.position, triangles[random.index].getNormal(), triangles, photon_map, photon_mapper, depth - 1, secondary_rays) * weight;
+			if (ray.closestIntersection(scene, random)) {
+				vec3 weight = dot(ray.direction, normal) * random.triangle->color;
+				radiance += deepGather(random.position, random.triangle->getNormal(), scene, photon_map, photon_mapper, depth - 1, secondary_rays) * weight;
 				samples++;
 			}
 		}
