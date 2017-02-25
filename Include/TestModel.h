@@ -57,41 +57,35 @@ void LoadTestModel(std::vector<Triangle>& triangles) {
 	vec3 H(0, L, L);
 
 	//Front Wall
-	Triangle t1 = Triangle(A, B, E, white, uv0_0, uv1_1, uv0_1);
-	t1.twoSided = false;
-	Triangle t2 = Triangle(B, F, E, white, uv0_0, uv1_1, uv0_1);
-	t2.twoSided = false;
-
-	triangles.push_back(t1);
-	triangles.push_back(t2);
+    triangles.emplace_back(A, B, E, white, uv0_0, uv1_1, uv0_1); triangles[0].twoSided = false;
+    triangles.emplace_back(B, F, E, white, uv0_0, uv1_1, uv0_1); triangles[1].twoSided = false;
 
 	//Floor
-    Triangle ta(C, B, A, white, uv0_0, uv1_1, uv0_1);
-    Triangle tb(C, D, B, white, uv0_0, uv1_0, uv1_1);
+    triangles.emplace_back(C, B, A, white, uv0_0, uv1_1, uv0_1);
+    triangles.emplace_back(C, D, B, white, uv0_0, uv1_0, uv1_1);
 
     //ta.setMaterial(metal_material);
     //tb.setMaterial(metal_material);
 
-	triangles.push_back(ta);
-	triangles.push_back(tb);
+	
 
     
 
 	// Left wall
-	triangles.push_back(Triangle(C, A, E, red, uv1_1, uv0_1, uv0_0));
-	triangles.push_back(Triangle(C, E, G, red, uv1_1, uv0_0, uv1_0));
+	triangles.emplace_back(C, A, E, red, uv1_1, uv0_1, uv0_0);
+	triangles.emplace_back(C, E, G, red, uv1_1, uv0_0, uv1_0);
 
 	// Right wall
-	triangles.push_back(Triangle(F, B, D, green, uv1_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(H, F, D, green, uv0_0, uv1_0, uv0_1));
+	triangles.emplace_back(F, B, D, green, uv1_0, uv1_1, uv0_1);
+	triangles.emplace_back(H, F, D, green, uv0_0, uv1_0, uv0_1);
 
 	// Ceiling
-	triangles.push_back(Triangle(E, F, G, white, uv0_0, uv1_0, uv0_1));
-	triangles.push_back(Triangle(F, H, G, white, uv1_0, uv1_1, uv0_1));
+	triangles.emplace_back(E, F, G, white, uv0_0, uv1_0, uv0_1);
+	triangles.emplace_back(F, H, G, white, uv1_0, uv1_1, uv0_1);
 
 	// Back wall
-	triangles.push_back(Triangle(G, D, C, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(G, H, D, white, uv0_0, uv1_0, uv1_1));
+	triangles.emplace_back(G, D, C, white, uv0_0, uv1_1, uv0_1);
+	triangles.emplace_back(G, H, D, white, uv0_0, uv1_0, uv1_1);
 
 	
 
@@ -110,24 +104,24 @@ void LoadTestModel(std::vector<Triangle>& triangles) {
 	
 
 	// Front
-	/*triangles.push_back(Triangle(E, B, A, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(E, F, B, white, uv0_0, uv1_0, uv1_1));
+	/*triangles.emplace_back(Triangle(E, B, A, white, uv0_0, uv1_1, uv0_1));
+	triangles.emplace_back(Triangle(E, F, B, white, uv0_0, uv1_0, uv1_1));
 
 	// Front
-	triangles.push_back(Triangle(F, D, B, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(F, H, D, white, uv0_0, uv1_0, uv1_1));
+	triangles.emplace_back(Triangle(F, D, B, white, uv0_0, uv1_1, uv0_1));
+	triangles.emplace_back(Triangle(F, H, D, white, uv0_0, uv1_0, uv1_1));
 
 	// BACK
-	triangles.push_back(Triangle(H, C, D, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(H, G, C, white, uv0_0, uv1_0, uv1_1));
+	triangles.emplace_back(Triangle(H, C, D, white, uv0_0, uv1_1, uv0_1));
+	triangles.emplace_back(Triangle(H, G, C, white, uv0_0, uv1_0, uv1_1));
 
 	// LEFT
-	triangles.push_back(Triangle(G, E, C, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(E, A, C, white, uv0_0, uv1_0, uv1_1));
+	triangles.emplace_back(Triangle(G, E, C, white, uv0_0, uv1_1, uv0_1));
+	triangles.emplace_back(Triangle(E, A, C, white, uv0_0, uv1_0, uv1_1));
 
 	// TOP
-	triangles.push_back(Triangle(G, F, E, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(G, H, F, white, uv0_0, uv1_0, uv1_1));*/
+	triangles.emplace_back(Triangle(G, F, E, white, uv0_0, uv1_1, uv0_1));
+	triangles.emplace_back(Triangle(G, H, F, white, uv0_0, uv1_0, uv1_1));*/
 
 	// ---------------------------------------------------------------------------
 	// Tall block
@@ -144,24 +138,24 @@ void LoadTestModel(std::vector<Triangle>& triangles) {
 
 
 	// Front
-	/*triangles.push_back(Triangle(E, B, A, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(E, F, B, white, uv0_0, uv1_0, uv1_1));
+	/*triangles.emplace_back(Triangle(E, B, A, white, uv0_0, uv1_1, uv0_1));
+	triangles.emplace_back(Triangle(E, F, B, white, uv0_0, uv1_0, uv1_1));
 
 	// Front
-	triangles.push_back(Triangle(F, D, B, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(F, H, D, white, uv0_0, uv1_0, uv1_1));
+	triangles.emplace_back(Triangle(F, D, B, white, uv0_0, uv1_1, uv0_1));
+	triangles.emplace_back(Triangle(F, H, D, white, uv0_0, uv1_0, uv1_1));
 
 	// BACK
-	triangles.push_back(Triangle(H, C, D, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(H, G, C, white, uv0_0, uv1_0, uv1_1));
+	triangles.emplace_back(Triangle(H, C, D, white, uv0_0, uv1_1, uv0_1));
+	triangles.emplace_back(Triangle(H, G, C, white, uv0_0, uv1_0, uv1_1));
 
 	// LEFT
-	triangles.push_back(Triangle(G, E, C, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(E, A, C, white, uv0_0, uv1_0, uv1_1));
+	triangles.emplace_back(Triangle(G, E, C, white, uv0_0, uv1_1, uv0_1));
+	triangles.emplace_back(Triangle(E, A, C, white, uv0_0, uv1_0, uv1_1));
 
 	// TOP
-	triangles.push_back(Triangle(G, F, E, white, uv0_0, uv1_1, uv0_1));
-	triangles.push_back(Triangle(G, H, F, white, uv0_0, uv1_0, uv1_1));*/
+	triangles.emplace_back(Triangle(G, F, E, white, uv0_0, uv1_1, uv0_1));
+	triangles.emplace_back(Triangle(G, H, F, white, uv0_0, uv1_0, uv1_1));*/
 
 
 	// ----------------------------------------------

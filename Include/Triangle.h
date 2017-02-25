@@ -71,6 +71,7 @@ public:
 
 	//Normals
 	glm::vec3 n0, n1, n2;
+    glm::vec3 edge_0, edge_1;
 
 	//Optional Parameters
     Material *material = nullptr;
@@ -79,22 +80,28 @@ public:
 	glm::vec3 color = glm::vec3(1.0f,1.0f,1.0f);
 	bool twoSided = true;
 
-	
+    Triangle& operator=(const Triangle& t) {
+        Triangle* con = (new Triangle(v0, v1, v2, uv0, uv1, uv2, n0, n1, n2));
+        con->color = color;
+        con->material = material;
+        con->twoSided = twoSided;
+        return *con;
+    }
 
 	inline Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2,
 					glm::vec2 uv0, glm::vec2 uv1, glm::vec2 uv2,
 					glm::vec3 n0, glm::vec3 n1, glm::vec3 n2) :
-					v0(v0), v1(v1), v2(v2), uv0(uv0), uv1(uv1), uv2(uv2), n0(n0), n1(n1), n2(n2) {
+					v0(v0), v1(v1), v2(v2), uv0(uv0), uv1(uv1), uv2(uv2), n0(n0), n1(n1), n2(n2), edge_0(v1-v0), edge_1(v2-v0) {
 		ComputeNormal();
 	}
 
 	Triangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec3 color, glm::vec2 uv0, glm::vec2 uv1, glm::vec2 uv2)
-		: v0(v0), v1(v1), v2(v2), color(color), uv0(uv0), uv1(uv1), uv2(uv2) {
+		: v0(v0), v1(v1), v2(v2), color(color), uv0(uv0), uv1(uv1), uv2(uv2), edge_0(v1 - v0), edge_1(v2 - v0) {
 		ComputeNormal();
 	}
 
-	inline glm::vec3 e1() { return v1 - v0; }
-	inline glm::vec3 e2() { return v2 - v0; }
+	inline const glm::vec3& e1() const { return edge_0; }
+	inline const glm::vec3& e2() const { return edge_1; }
     inline void setMaterial(Material* material) { this->material = material; }
     inline Material* getMaterial() { return this->material; }
     inline bool hasMaterial() { return this->material != nullptr; }
@@ -108,13 +115,14 @@ public:
 	}
 
 	inline void ComputeNormal() {
-		glm::vec3 e1 = v1 - v0;
-		glm::vec3 e2 = v2 - v0;
+        //Not sure why, but if these aren't here (i.e. the initializer list sets them) then it breaks
+        edge_0 = v1 - v0;
+        edge_1 = v2 - v0;
 		/*
 		**  Points in triangle's plane: r = v0 + u*e1 + v*e2
 		**	Points in triangle: 0 < u, 0 < v, u+v < 1
 		*/
-		normal = glm::normalize(glm::cross(e2, e1));
+		normal = glm::normalize(glm::cross(edge_1, edge_0));
 	}
 
     inline void ComputeNormalPerVertex() {

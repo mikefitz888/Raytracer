@@ -2,7 +2,7 @@
 #include "../Include/Triangle.h"
 
 
-glm::vec3 Ray::getIntersection(Triangle triangle) {
+glm::vec3 Ray::getIntersection(Triangle& triangle) {
 	//Intersection = t, u, v
 	// v0 + u*e1 + v*e2 = s + t*d
 	glm::mat3 A(-direction, triangle.e1(), triangle.e2());
@@ -44,49 +44,35 @@ bool Ray::closestIntersection(/*const std::vector<Triangle>& triangles*/const Sc
             // LOOP THROUGH TRIANGLES IN TRIANGLE ARRAY
             for( std::vector<Triangle>* triangles : triangle_arrays){
                 for (auto& triangle : *triangles) {
-                    //i++;
-                    glm::mat3 A(-direction, triangle.e1(), triangle.e2());
-                    glm::vec3 b = origin - triangle.v0;
+                    glm::vec3 P = glm::cross(direction, triangle.e2());
+                    float det = glm::dot(triangle.e1(), P);
 
-                    float detA = glm::determinant(A); //Calculating determinant of A for use in Cramer's rule
+                    
+                    if (det > -FLT_EPSILON && det < FLT_EPSILON) continue;
+                    float inv_det = 1.f / det;
 
-                    glm::mat3 A0 = A;
-                    A0[0] = b;
-                    float detA0 = glm::determinant(A0);
-                    float t = detA0 / detA;
+                    glm::vec3 T = origin - triangle.v0;
+                    float u = glm::dot(T, P) * inv_det;
+                    if (u < 0.f || u > 1.f) continue; //outside triangle
 
-                    if (t >= 0) { //If t is negative then no intersection will occur
-                        //If this is a bottle-neck then maybe it's faster to: glm::inverse(A) * b;
-                        glm::mat3 A1 = A;
-                        A1[1] = b;
-                        float detA1 = glm::determinant(A1);
-                        float u = detA1 / detA;
-                        if (u < 0 || u > 1) continue;
+                    glm::vec3 Q = glm::cross(T, triangle.e1());
+                    float v = glm::dot(direction, Q) * inv_det;
+                    if (v < 0.f || u + v > 1.f) continue; //outside triangle
 
-                        glm::mat3 A2 = A;
-                        A2[2] = b;
-                        float detA2 = glm::determinant(A2);
-                        float v = detA2 / detA;
-                        if (v < 0 || v > 1) continue;
+                    float t = glm::dot(triangle.e2(), Q) * inv_det;
+                    if (t > FLT_EPSILON) {
+                        glm::vec3 intersect = triangle.v0 + u*triangle.e1() + v*triangle.e2();
+                        float distance = glm::distance(origin, intersect);
+                        if (distance < min_dist) {
 
+                            // Check normal
+                            float factor = glm::dot(direction, triangle.normal);
+                            if (factor > FLT_EPSILON && !triangle.twoSided) { continue; }
 
-
-                        //Check if intersection with triangle actually occurs
-                        if (u + v <= 1) {
-                            glm::vec3 intersect = triangle.v0 + u*triangle.e1() + v*triangle.e2();
-                            float distance = glm::distance(origin, intersect);
-                            if (distance < min_dist) {
-
-                                // Check normal
-                                float factor = glm::dot(glm::normalize(direction), glm::normalize(triangle.normal));
-                                if (factor > 0.001 && !triangle.twoSided) { continue; }
-
-                                result = true;
-                                min_dist = distance;
-                                position = intersect;
-                                //index = i;
-                                triangle_result = &triangle;
-                            }
+                            result = true;
+                            min_dist = distance;
+                            position = intersect;
+                            triangle_result = &triangle;
                         }
                     }
                 }
