@@ -27,10 +27,11 @@ class Material {
     bitmap_image* diffuse_map, specular_map, normal_map;
 
     MaterialType type = MaterialType::NORMAL;
-    float specular_factor   = 0.0f; // between 0.0 and 1.0 (intensity of specular highlight)
-    float reflection_factor = 0.0f; // between 0.0 and 1.0 (factor of reflectivity vs diffuse)
-    float glossiness        = 0.0f; // between 0.0 and 1.0 (controls the glossiness of a surface, 0.0 = pure reflections, 1.0 = matte reflections)
-    float refractive_index  = 1.0f; // Refractive index of the material
+    float specular_factor   = 0.0f;  // between 0.0 and 1.0 (intensity of specular highlight)
+    float specular_power    = 32.0f; // Specular power factor (controls highlight size)
+    float reflection_factor = 0.0f;  // between 0.0 and 1.0 (factor of reflectivity vs diffuse)
+    float glossiness        = 0.0f;  // between 0.0 and 1.0 (controls the glossiness of a surface, 0.0 = pure reflections, 1.0 = matte reflections)
+    float refractive_index  = 1.0f;  // Refractive index of the material
 
 public:
     //Material(MaterialType type, float specular_factor = 0.0f, float reflection_factor = 0.0f, float glossiness = 0.0f, float refractive_index = 0.0f);
@@ -49,13 +50,16 @@ public:
         this->type = MaterialType::REFRACTIVE;
         this->refractive_index = refractive_index;
     }
+    
     inline float getSpecularFactor() { return this->specular_factor;  }
+    inline float getSpecularPower() { return this->specular_power; }
     inline float getReflectionFactor() { return this->reflection_factor;  }
     inline float getGlossiness() { return this->glossiness; }
     inline float getRefractiveIndex() { return this->refractive_index; }
     inline MaterialType getType() { return this->type;  }
 
     inline void setSpecularFactor(float specular_factor) { this->specular_factor = specular_factor; }
+    inline void setSpecularPower(float specular_power) { this->specular_power = specular_power; }
     inline void setReflectionFactor(float reflection_factor) { this->reflection_factor = reflection_factor; }
     inline void setGlossiness(float glossiness) { this->glossiness = glossiness; }
     inline void setRefractiveIndex(float refractive_index) { this->refractive_index = refractive_index; }
@@ -75,6 +79,9 @@ public:
 
 	//Optional Parameters
     Material *material = nullptr;
+
+    // ID
+    int triangle_scene_id = 0;
 
 	glm::vec3 normal;
 	glm::vec3 color = glm::vec3(1.0f,1.0f,1.0f);

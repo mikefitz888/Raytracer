@@ -1,4 +1,5 @@
 #include "../Include/PhotonMap.h"
+
 //#include "../Include/SDLauxiliary.h"
 
 namespace photonmap {
@@ -6,133 +7,145 @@ namespace photonmap {
         color *= glm::vec3(intensity);
     }
 
-	void PhotonMapper::mapScene(model::Scene& scene) {
-		float total_light_intensity = 0.0f;
-		for (auto light : scene.light_sources) { total_light_intensity += light->intensity; }
+    void PhotonMapper::mapScene(model::Scene& scene) {
+        float total_light_intensity = 0.0f;
+        for (auto light : scene.light_sources) { total_light_intensity += light->intensity; }
 
-		unsigned int assigned_photons = 0;
-		std::vector<unsigned int> photons_per_light;
-		for (int i = 0; i < scene.light_sources.size(); i++) {
-			photons_per_light.push_back((unsigned int)(((float)number_of_photons) * (scene.light_sources[i]->intensity / total_light_intensity)));
-			assigned_photons += photons_per_light[i];
-		}
+        unsigned int assigned_photons = 0;
+        std::vector<unsigned int> photons_per_light;
+        for (int i = 0; i < scene.light_sources.size(); i++) {
+            photons_per_light.push_back((unsigned int)(((float)number_of_photons) * (scene.light_sources[i]->intensity / total_light_intensity)));
+            assigned_photons += photons_per_light[i];
+        }
 
-		photons_per_light[scene.light_sources.size() - 1] += number_of_photons - assigned_photons; //Give any unused photons (due to truncation) to the last light source
-		
-		/*
+        photons_per_light[scene.light_sources.size() - 1] += number_of_photons - assigned_photons; //Give any unused photons (due to truncation) to the last light source
+
+        /*
         ** http://users.csc.calpoly.edu/~zwood/teaching/csc572/final15/cthomp/index.html
-		** At this point the photons have been divided between available light sources, the split being weighted by the intensity of the light source
-		** (although I am not sure if this is the best approach. It shouldn't matter for simple examples however.)
-		**
-		** First step is to generate random directions for each photon based on an appropriate probability density
-		** Next step is to simulate the action of the photon throughout the scene, employing russion-roulette approach for randomising photon action
-		**   -
-		*/
+        ** At this point the photons have been divided between available light sources, the split being weighted by the intensity of the light source
+        ** (although I am not sure if this is the best approach. It shouldn't matter for simple examples however.)
+        **
+        ** First step is to generate random directions for each photon based on an appropriate probability density
+        ** Next step is to simulate the action of the photon throughout the scene, employing russion-roulette approach for randomising photon action
+        **   -
+        */
 
-		//Generate photons
-		/*for (int i = 0; i < scene.light_sources.size(); i++) {
-			printf("Adding %d photons to light #%d\n", photons_per_light[i], i);
+        //Generate photons
+        /*for (int i = 0; i < scene.light_sources.size(); i++) {
+            printf("Adding %d photons to light #%d\n", photons_per_light[i], i);
             float total_photons = photons_per_light[i];
-			while (photons_per_light[i]--) {
-				//Light uniformly distributed in all directions, not necessarily the best approach, we probably want to stop upwards directed light
-				auto dir = glm::sphericalRand(1.0f);
-				photons.emplace_back(scene.light_sources[i]->position, dir, number_of_bounces, std::pow(2.0f, scene.light_sources[i]->intensity)/(total_photons) );
-				//auto pos = scene.light_sources[i]->position;
-				//printf("Photon info: Dir=(%f, %f, %f), Pos=(%f, %f, %f), Bounces=%d\n", dir.x, dir.y, dir.z, pos.x, pos.y, pos.z, number_of_bounces);
-			}
-			printf("Added %d photons to light #%d\n", photons.size(), i);
-		}*/
-
-		/* 
-		** Emulate photons
-		** Currently handling:
-		**	-Global Illumination
-		**  -Shadows
-		**
-		** Planned:
-		**  -Refraction, requires russian-roulette style decision making for efficiency
-		*/
-
-		Intersection closest, shade;
-		for (int i = 0; i < number_of_photons; i++) {
-            if (i % (number_of_photons/10) == 0) {
-                std::cout << "     " << i << " of " << number_of_photons << " generated" << std::endl;
+            while (photons_per_light[i]--) {
+                //Light uniformly distributed in all directions, not necessarily the best approach, we probably want to stop upwards directed light
+                auto dir = glm::sphericalRand(1.0f);
+                photons.emplace_back(scene.light_sources[i]->position, dir, number_of_bounces, std::pow(2.0f, scene.light_sources[i]->intensity)/(total_photons) );
+                //auto pos = scene.light_sources[i]->position;
+                //printf("Photon info: Dir=(%f, %f, %f), Pos=(%f, %f, %f), Bounces=%d\n", dir.x, dir.y, dir.z, pos.x, pos.y, pos.z, number_of_bounces);
             }
-			glm::vec3 origin = glm::linearRand(glm::vec3(-0.35, -0.80f, -0.35), glm::vec3(0.35, -0.95f, 0.35));
-			float u = Rand(); float v = 2 * M_PI * Rand();
-			//glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?
-			glm::vec3 direction = glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-			Ray ray(origin, direction);
-			glm::vec3 radiance = glm::dot(ray.direction, glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(1.0f); //Last term is light color (white), weighted by light direction
-			//glm::vec3 radiance = glm::vec3(1.0f);
+            printf("Added %d photons to light #%d\n", photons.size(), i);
+        }*/
 
-			for (int bounce = 0; bounce < number_of_bounces; bounce++) {
+        /*
+        ** Emulate photons
+        ** Currently handling:
+        **	-Global Illumination
+        **  -Shadows
+        **
+        ** Planned:
+        **  -Refraction, requires russian-roulette style decision making for efficiency
+        */
 
-				//bounce == 0 => direct lighting => shoot shadow photons
-				if (ray.closestIntersection(scene, closest)) {
+        Intersection closest, shade;
 
-					
+#pragma omp parallel
+        {
+            std::vector<PhotonInfo> thread_indirect_photons, thread_direct_photons, thread_shadow_photons;
+#pragma omp for schedule(dynamic, 200)
+            for (int i = 0; i < number_of_photons; i++) {
+                if (i % (number_of_photons / 10) == 0) {
+                    std::cout << "     " << i << " of " << number_of_photons << " generated" << std::endl;
+                }
+                glm::vec3 origin = glm::linearRand(glm::vec3(-0.35, -0.80f, -0.35), glm::vec3(0.35, -0.95f, 0.35));
+                float u = Rand(); float v = 2 * M_PI * Rand();
+                //glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?
+                glm::vec3 direction = glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                Ray ray(origin, direction);
+                glm::vec3 radiance = glm::dot(ray.direction, glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(1.0f); //Last term is light color (white), weighted by light direction
+                //glm::vec3 radiance = glm::vec3(1.0f);
 
-					// determine intersection data
-					glm::vec3 intersection = closest.position;
-					glm::vec3 normal = /*scene.getTrianglesRef()[closest.index]*/closest.triangle->getNormal();
-					//glm::vec3 reflection = MATH::CosineWeightedHemisphereDirection(normal);;
-					glm::vec3 reflection = normal;
-					reflection = glm::rotateX(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
-					reflection = glm::rotateY(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
-					reflection = glm::rotateZ(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
-					//glm::vec3 reflection = glm::linearRand(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-					reflection = glm::normalize(reflection);
+                for (int bounce = 0; bounce < number_of_bounces; bounce++) {
 
-					radiance *= glm::dot(normal, reflection);
-					radiance = glm::clamp(radiance, 0.0f, 1.0f);
-
-					// Weaken ray intensity based on distance travelled
-					float distance = glm::length(intersection - ray.origin);
-					float distance_factor = 1.0f - glm::clamp(distance / 4.5f, 0.0f, 1.0f);
-					radiance *= distance_factor;
-					
-					// Perform different operations on indirect light and direct light
-					if (bounce > 0) { //Indirect lighting
-
-
-						indirect_photons.emplace_back(radiance, intersection, ray.direction);
-
-						float p = (radiance.r + radiance.g + radiance.b) * 0.9;
-						float rand = (float)std::rand() / (float)RAND_MAX;
-						if (rand > p) {
-							break;
-						}
-					}
-					else { //Direct lighting
-						direct_photons.emplace_back(radiance, intersection, ray.direction);
-
-						//Add shadows
-						Ray shadow(intersection + 0.001f * ray.direction, ray.direction);
-						while (shadow.closestIntersection(scene, shade)) {
-							shadow_photons.emplace_back(glm::vec3(0), shade.position, ray.direction);
-							shadow.origin = shade.position + 0.001f * ray.direction;
-						}
-					}
-
-					// Weighted control to make a number of photons not transfer colour
-					float rand_color = (float)rand() / (float)RAND_MAX;
-					if (rand_color > 0.95) {
-						radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance);
-					} else {
-						radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance * closest.triangle->color);
-					}
-					
-					ray.origin = intersection + 0.001f*normal;
-					ray.direction = reflection;
-				}
-				else break;
-			}
-		}
-
-        
+                    //bounce == 0 => direct lighting => shoot shadow photons
+                    if (ray.closestIntersection(scene, closest)) {
 
 
+
+                        // determine intersection data
+                        glm::vec3 intersection = closest.position;
+                        glm::vec3 normal = /*scene.getTrianglesRef()[closest.index]*/closest.triangle->getNormal();
+                        //glm::vec3 reflection = MATH::CosineWeightedHemisphereDirection(normal);;
+                        glm::vec3 reflection = normal;
+                        reflection = glm::rotateX(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                        reflection = glm::rotateY(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                        reflection = glm::rotateZ(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                        //glm::vec3 reflection = glm::linearRand(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        reflection = glm::normalize(reflection);
+
+                        radiance *= glm::dot(normal, reflection);
+                        radiance = glm::clamp(radiance, 0.0f, 1.0f);
+
+                        // Weaken ray intensity based on distance travelled
+                        float distance = glm::length(intersection - ray.origin);
+                        float distance_factor = 1.0f - glm::clamp(distance / 4.5f, 0.0f, 1.0f);
+                        radiance *= distance_factor;
+
+                        // Perform different operations on indirect light and direct light
+                        if (bounce > 0) { //Indirect lighting
+
+
+                            thread_indirect_photons.emplace_back(radiance, intersection, ray.direction);
+
+                            float p = (radiance.r + radiance.g + radiance.b) * 0.9;
+                            float rand = (float)std::rand() / (float)RAND_MAX;
+                            if (rand > p) {
+                                break;
+                            }
+                        } else { //Direct lighting
+                            thread_direct_photons.emplace_back(radiance, intersection, ray.direction);
+
+                            //Add shadows
+                            Ray shadow(intersection + 0.001f * ray.direction, ray.direction);
+                            while (shadow.closestIntersection(scene, shade)) {
+                                thread_shadow_photons.emplace_back(glm::vec3(0), shade.position, ray.direction);
+                                shadow.origin = shade.position + 0.001f * ray.direction;
+                            }
+                        }
+
+                        // Weighted control to make a number of photons not transfer colour
+                        float rand_color = (float)rand() / (float)RAND_MAX;
+                        if (rand_color > 0.95) {
+                            radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance);
+                        } else {
+                            radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance * closest.triangle->color);
+                        }
+
+                        ray.origin = intersection + 0.001f*normal;
+                        ray.direction = reflection;
+                    } else break;
+                }
+            }
+#pragma omp critical 
+            {
+                for (auto& p : thread_direct_photons) {
+                    direct_photons.emplace_back(p.color, p.position, p.direction);
+                }
+                for (auto& p : thread_direct_photons) {
+                    indirect_photons.emplace_back(p.color, p.position, p.direction);
+                }
+                for (auto& p : thread_shadow_photons) {
+                    shadow_photons.emplace_back(p.color, p.position, p.direction);
+                }
+            }
+        }
 		//Weight photons
 		for (auto photon : direct_photons.photons) {
 			photon.color /= (direct_photons.size() + indirect_photons.size());
@@ -150,105 +163,126 @@ namespace photonmap {
         */
         std::cout << "GENERATING CAUSTIC MAP: " << std::endl;
         auto& triangles = scene.getTrianglesRef();
-        number_of_photons *= 10;
-        for (int i = 0; i < number_of_photons; i++) {
+        number_of_photons *= 50;
 
-            if (i % (number_of_photons / 10) == 0) {
-                std::cout << "     " << i << " of " << number_of_photons << " generated" << std::endl;
-            }
+#pragma omp parallel
+        {
+            std::vector<PhotonInfo> thread_photons;
+#pragma omp for schedule(dynamic, 500)
+            for (int i = 0; i < number_of_photons; i++) {
 
-            glm::vec3 origin = glm::linearRand(glm::vec3(-0.35, -0.80f, -0.35), glm::vec3(0.35, -0.95f, 0.35));
-            float u = Rand(); float v = 2 * M_PI * Rand();
-            //glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?
-            glm::vec3 direction = glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-            Ray ray(origin, direction);
+                if (i % (number_of_photons / 10) == 0) {
+                    std::cout << "     " << i << " of " << number_of_photons << " generated" << std::endl;
+                }
 
-            // Colour
-            glm::vec3 radiance = glm::vec3(1.0f);
+                glm::vec3 origin = glm::linearRand(glm::vec3(-0.00, -0.75f, -0.00), glm::vec3(0.00, -0.75f, 0.00));
+                float u = Rand(); float v = 2 * M_PI * Rand();
+                glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?
+                //glm::vec3 direction = glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                Ray ray(origin, direction);
 
-            
-            // We only want to allow photons to refract a number of times
-            bool hasRefracted = false;
-
-            const int RAY_DEPTH_MAX = 5;
-            for (int ray_depth = 0; ray_depth < RAY_DEPTH_MAX; ray_depth++) {
+                // Colour
+                glm::vec3 radiance = glm::vec3(1.0f);
 
 
-                if (ray.closestIntersection(scene, closest)) {
-                    //Triangle triangle  = scene.getTrianglesRef()[closest.index];
-                    Material *material = closest.triangle->getMaterial();
+                // We only want to allow photons to refract a number of times
+                bool hasRefracted = false;
 
-                    // Calculate triangle surface normal (using barycentric coordinates)
-                    glm::vec3 barycentric_coords = closest.triangle->calculateBarycentricCoordinates(closest.position);
-                    glm::vec3 surface_normal = (closest.triangle->n0*barycentric_coords.x + closest.triangle->n1*barycentric_coords.y + closest.triangle->n2*barycentric_coords.z);
+                const int RAY_DEPTH_MAX = 10;
 
-                    if (closest.triangle->hasMaterial() && material->getType() != MaterialType::NORMAL) {
+                for (int ray_depth = 0; ray_depth < RAY_DEPTH_MAX; ray_depth++) {
 
-                        
-                        switch (material->getType()) {
 
-                            // REFRACTIVE
-                            case MaterialType::REFRACTIVE: {
+                    if (ray.closestIntersection(scene, closest)) {
+                        //Triangle triangle  = scene.getTrianglesRef()[closest.index];
+                        Material *material = closest.triangle->getMaterial();
 
-                                // DETERMINE NEW REFRACTED RAY
-                                float refractive_index_air = 1.00003f;
-                                float refractive_index_material = material->getRefractiveIndex();
-                                float eta = 1.0;
+                        // Calculate triangle surface normal (using barycentric coordinates)
+                        glm::vec3 barycentric_coords = closest.triangle->calculateBarycentricCoordinates(closest.position);
+                        glm::vec3 surface_normal = (closest.triangle->n0*barycentric_coords.x + closest.triangle->n1*barycentric_coords.y + closest.triangle->n2*barycentric_coords.z);
 
-                                glm::vec3 refr_dir;
-                                if (glm::dot(glm::normalize(surface_normal), glm::normalize(direction)) < 0.0) {
-                                    eta = refractive_index_air / refractive_index_material;
-                                    refr_dir = glm::normalize(glm::refract(glm::normalize(direction), glm::normalize(surface_normal), eta));
-                                }
-                                else {
-                                    eta = refractive_index_material / refractive_index_air;
-                                    refr_dir = -glm::normalize(glm::refract(glm::normalize(-direction), glm::normalize(surface_normal), eta));
-                                }
+                        if (closest.triangle->hasMaterial() && material->getType() != MaterialType::NORMAL) {
 
-                                glm::vec3 refr_ray_pos = closest.position + refr_dir*0.0001f;
+
+                            switch (material->getType()) {
+
+                                // REFRACTIVE
+                                case MaterialType::REFRACTIVE:
+                                {
+
+                                    // DETERMINE NEW REFRACTED RAY
+                                    float refractive_index_air = 1.00003f;
+                                    float refractive_index_material = material->getRefractiveIndex();
+                                    float eta = 1.0;
+
+                                    glm::vec3 refr_dir;
+                                    if (glm::dot(glm::normalize(surface_normal), glm::normalize(direction)) < 0.0) {
+                                        eta = refractive_index_air / refractive_index_material;
+                                        refr_dir = glm::normalize(glm::refract(glm::normalize(direction), glm::normalize(surface_normal), eta));
+                                    } else {
+                                        eta = refractive_index_material / refractive_index_air;
+                                        refr_dir = -glm::normalize(glm::refract(glm::normalize(-direction), glm::normalize(surface_normal), eta));
+                                    }
+
+                                    glm::vec3 refr_ray_pos = closest.position + refr_dir*0.0001f;
+
+                                    // Set next ray properties
+                                    ray.origin = refr_ray_pos;
+                                    ray.direction = refr_dir;
+
+                                    // Adjust colour
+                                    radiance *= closest.triangle->color;
+
+                                    hasRefracted = true;
+                                    continue;
+                                } break;
+
+                                // REFLECTIVE
+                                case MaterialType::REFLECTIVE:
+                                {
+
+                                } break;
+                            }
+                        } else {
+                            // HITS A NORMAL DIFFUSE SURFACE (ABSORB if refracted before)
+                            if (hasRefracted) {
+
+                                thread_photons.emplace_back(radiance, closest.position, ray.direction);
+                                //caustic_photons.emplace_back(radiance, closest.position, ray.direction);
+                                //ray_depth = RAY_DEPTH_MAX; // <- stop tracing
+                                //hasRefracted = false;
+                            } /*else {*/
+                                // Reflect off of diffuse surface
+                                /*glm::vec3 reflection = surface_normal;
+                                reflection = glm::rotateX(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                                reflection = glm::rotateY(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                                reflection = glm::rotateZ(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                                //glm::vec3 reflection = glm::linearRand(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                                reflection = glm::normalize(reflection);
 
                                 // Set next ray properties
-                                ray.origin    = refr_ray_pos;
-                                ray.direction = refr_dir;
-
-                                hasRefracted = true;
-                                continue;
-                                } break;
-
-                            // REFLECTIVE
-                            case MaterialType::REFLECTIVE: {
-
-                                } break;
+                                ray.origin = closest.position + reflection*0.0001f;
+                                ray.direction = reflection;*/
+                                //}
+                            ray_depth = RAY_DEPTH_MAX; // <- stop tracing
+                            continue;
                         }
                     }
-                    else {
-                        // HITS A NORMAL DIFFUSE SURFACE (ABSORB if refracted before)
-                        if (hasRefracted) {
-
-                            caustic_photons.emplace_back(radiance, closest.position, ray.direction);
-                            //ray_depth = RAY_DEPTH_MAX; // <- stop tracing
-                            //hasRefracted = false;
-                        } /*else {*/
-                            // Reflect off of diffuse surface
-                            /*glm::vec3 reflection = surface_normal;
-                            reflection = glm::rotateX(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
-                            reflection = glm::rotateY(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
-                            reflection = glm::rotateZ(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
-                            //glm::vec3 reflection = glm::linearRand(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-                            reflection = glm::normalize(reflection);
-
-                            // Set next ray properties
-                            ray.origin = closest.position + reflection*0.0001f;
-                            ray.direction = reflection;*/
-                        //}
-                        ray_depth = RAY_DEPTH_MAX; // <- stop tracing
-                        continue;
-                    }
                 }
+
             }
 
+#pragma omp critical
+            {
+                for (auto& p : thread_photons) {
+                    caustic_photons.emplace_back(p.color, p.position, p.direction);
+                }
+            }
         }
 
+        // Collect
+
+        // Weight
         for (auto& photon : caustic_photons.photons) {
             photon.color /= (caustic_photons.size());
             photon.color *= 100000.0f;

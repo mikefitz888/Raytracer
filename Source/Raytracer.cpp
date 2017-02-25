@@ -26,13 +26,13 @@
 #define PREVIEW_RENDER true
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE true
+#define _AA_ENABLE false
 #define _AA_FACTOR 16.0f
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ false
 #define _PHOTON_MAPPING_ENABLE_ false
 #define _CAUSTICS_ENABLE_ false
-#define _SOFT_SHADOWS true
+#define _SOFT_SHADOWS false
 #define _SOFT_SHADOW_SAMPLES 5
 
 
@@ -89,6 +89,8 @@ int main(int argc, char** argv) {
     default_material = new Material();
     glass_material = new Material();
     glass_material->materialSetTypeRefractive(1.5f);
+    //glass_material->setSpecularFactor(0.75f);
+    //glass_material->setSpecularPower(4.0f);
 
     metal_material = new Material();
     metal_material->materialSetTypeReflective(0.75f, 0.50f);
@@ -106,7 +108,11 @@ int main(int argc, char** argv) {
     //m.setUseOptimisationStructure(false);
     // Assign the glass material to the model
     for (auto& t : *m.getFaces()) {
-        t.setMaterial(glass_material);
+        //t.setMaterial(glass_material);
+        //t.color = glm::vec3(0.78f, 0.90f, 1.0f);
+        /*t.n0 = -t.n0;
+        t.n1 = -t.n1;
+        t.n2 = -t.n2;*/
     }
     m.generateOctree();
 
@@ -160,27 +166,27 @@ int main(int argc, char** argv) {
 		keystate = SDL_GetKeyState(0);
 		if (keystate[SDLK_UP]) {
 			// Move camera forward
-			campos.z += 0.005;
+			campos.z += 0.0025;
 		}
 		if (keystate[SDLK_DOWN]) {
 			// Move camera backward
-			campos.z -= 0.005;
+			campos.z -= 0.0025;
 		}
 		if (keystate[SDLK_LEFT]) {
 			// Move camera to the left
-			campos.x -= 0.005;
+			campos.x -= 0.0025;
 		}
 		if (keystate[SDLK_RIGHT]) {
 			// Move 
-			campos.x += 0.005;
+			campos.x += 0.0025;
 		}
 		if (keystate[SDLK_PAGEUP]) {
 			// Move camera to the left
-			campos.y -= 0.005;
+			campos.y -= 0.0025;
 		}
 		if (keystate[SDLK_PAGEDOWN]) {
 			// Move 
-			campos.y += 0.005;
+			campos.y += 0.0025;
 		}
 		if (keystate[SDLK_SPACE]) {
 			run = false;
@@ -410,7 +416,9 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         */
         Triangle& t = *closest_intersect.triangle;
         glm::vec3 barycentric_coords = t.calculateBarycentricCoordinates(closest_intersect.position);
-
+        glm::vec3 surface_normal = (t.n0*barycentric_coords.x + t.n1*barycentric_coords.y + t.n2*barycentric_coords.z);
+       // glm::vec3 surface_normal_spec = ((-t.n0)*barycentric_coords.x + (-t.n1)*barycentric_coords.y + (-t.n2)*barycentric_coords.z);
+#if _TEXTURE_ENABLE_ == 1
         glm::vec2 baseColourUV = t.uv0*barycentric_coords.x + t.uv1*barycentric_coords.y + t.uv2*barycentric_coords.z;
         int tw = texture->width();
         int th = texture->height();
@@ -431,7 +439,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         baseColour *= t.color;
 
         // Get normal
-        glm::vec3 surface_normal = (t.n0*barycentric_coords.x + t.n1*barycentric_coords.y + t.n2*barycentric_coords.z);
+        
         glm::vec3 texture_normal;
 
         // Get normal map data:
@@ -476,7 +484,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
 
         glm::mat3x3 TBN = glm::mat3x3(tangent*invmax, bitangent*invmax, surface_normal);
         combined_normal = glm::normalize(TBN*texture_normal);
-
+#endif
         //PHOTON MAPPING RENDERER SECTION
         glm::vec3 photon_radiance(0.0f);
         if (_PHOTON_MAPPING_ENABLE_&&_GLOBAL_ILLUMINATION_ENABLE_) {
@@ -549,6 +557,11 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         // SIMPLE LIGHTING
         float light_factor = 0.0;
         float SpecularFactor = 0.0;
+        float material_specular_power = 0.0f;
+        if (t.hasMaterial()) {
+            material_specular_power = t.getMaterial()->getSpecularPower();
+        }
+
         if (_SOFT_SHADOWS) {
             for (int count = 0; count < _SOFT_SHADOW_SAMPLES; count++) {
 
@@ -561,7 +574,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
                 float light_factor_x = 1.0f - glm::clamp((light_distance / 2.35f), 0.0f, 1.0f);
                 light_factor_x = glm::clamp((double)light_factor_x, 0.0, 1.0);
                 light_factor_x *= glm::dot(/*t.normal*/surface_normal, glm::normalize(dir_to_light));
-                light_factor_x *= glm::dot(-dir_to_light, glm::vec3(0.0f, 1.0f, 0.0f)); // <-- light points downwards
+                //light_factor_x *= glm::dot(-dir_to_light, glm::vec3(0.0f, 1.0f, 0.0f)); // <-- light points downwards
 
                 // Send a ray between the point on the surface and the light. (The *0.01 is because we need to step a little bit off the surface to avoid self-intersection)
                 Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
@@ -590,15 +603,6 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
             Ray lightRay(closest_intersect.position + dir_to_light*0.01f, glm::normalize(dir_to_light));
             Intersection closest_intersect2;
 
-            // Specularity
-            glm::vec3 LightReflect = glm::normalize(glm::reflect(-dir_to_light, surface_normal));
-            SpecularFactor = glm::dot(ray.direction, LightReflect);
-            if (SpecularFactor > 0) {
-                SpecularFactor = pow(SpecularFactor, 32.0f);
-            } else {
-                SpecularFactor = 0.0;
-            }
-
             // If the ray intersects with something, and the distance to the intersecting object is closer than 
             if (lightRay.closestIntersection(scene, closest_intersect2)) {
                 if (closest_intersect2.distance < light_distance) {
@@ -606,6 +610,27 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
                 }
             }
         }
+
+
+        if (t.hasMaterial()) {
+            // Specularity
+            const glm::vec3 light_position(0.0, -0.75, 0.0);
+            glm::vec3 dir_to_light = light_position - closest_intersect.position;
+
+            glm::vec3 LightReflect = glm::normalize(glm::reflect(-dir_to_light, surface_normal));
+            SpecularFactor = glm::dot(ray.direction, LightReflect);
+            if (SpecularFactor > 0) {
+                SpecularFactor = pow(SpecularFactor, material_specular_power);
+            } else {
+                SpecularFactor = 0.0;
+            }
+
+            SpecularFactor *= t.getMaterial()->getSpecularFactor();
+        } else {
+            SpecularFactor = 0.0f;
+        }
+        
+
         //light_factor = 0.0f;
 
         // *********************************************************************** //
@@ -617,7 +642,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         if (_PHOTON_MAPPING_ENABLE_&&_CAUSTICS_ENABLE_) {
             // TODO: Pull caustic data from photon map
             std::vector<std::pair<size_t, float>> caustic_photons_in_range;
-            photon_map.getCausticPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE*0.0025, caustic_photons_in_range);
+            photon_map.getCausticPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE/**0.0025*/*0.001, caustic_photons_in_range);
 
             glm::vec3 total_energy = glm::vec3(0.0);
             for (auto pht : caustic_photons_in_range) {
@@ -627,12 +652,12 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
 
                 total_energy += energy;
             }
-            total_energy /= 80;
+            total_energy /= 350/*550*/;
 
             caustic_factor = total_energy;
         }
-        caustic_factor = glm::pow(caustic_factor, glm::vec3(1.75f))*0.75f;
-
+        //caustic_factor = glm::pow(caustic_factor, glm::vec3(1.75f))*0.75f;
+        caustic_factor = glm::clamp(caustic_factor, 0.0f, 0.60f);
         // *********************************************************************** //
         // GET MATERIAL TYPE
         /*
@@ -644,7 +669,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         // Determine default base colour
         glm::vec3 ambient_factor = glm::vec3(0.05f, 0.05f, 0.05f);
         glm::vec3 ambient_colour = glm::vec3(1.0f, 1.0f, 1.0f);
-        baseColour = baseColour * (photon_radiance + light_factor*light_colour + ambient_factor*ambient_colour/*+ SpecularFactor*/) + caustic_factor;
+        baseColour = baseColour * (photon_radiance + light_factor*light_colour + ambient_factor*ambient_colour + SpecularFactor) + caustic_factor;
 
         if (t.hasMaterial()) {
             Material* material = t.getMaterial();
@@ -671,7 +696,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
 
 
                     // Combine reflect colour with base colour by factor
-                    output_colour = glm::mix(reflect_colour, baseColour, 1.0f - material->getReflectionFactor());
+                    output_colour = t.color*glm::mix(reflect_colour, baseColour, 1.0f - material->getReflectionFactor()) + SpecularFactor;
                 } break;
 
 
@@ -718,7 +743,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
                     glm::vec3 refr_ray_pos = closest_intersect.position + refr_dir*0.0001f;
 
                     glm::vec3 refract_colour = Trace(refr_ray_pos, refr_dir, photon_map, scene, photon_mapper, depth + 1);
-                    output_colour = refract_colour;
+                    output_colour = t.color*refract_colour + SpecularFactor;
                     //output_colour = Trace(triangles, closest_intersect.position + refr_dir*0.0001f, refr_dir, photon_map, scene, photon_mapper, depth + 1);
                 } break;
 
