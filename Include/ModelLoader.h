@@ -147,7 +147,9 @@ namespace model {
 	struct Scene {
 	private:
 		std::vector<Triangle> triangles;
+        
 	public:
+
 		std::vector<Model*> models;
 		std::vector<LightSource*> light_sources;
 		void getTriangles(std::vector<Triangle>& triangles);

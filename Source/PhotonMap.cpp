@@ -6,7 +6,7 @@ namespace photonmap {
 	Photon::Photon(glm::vec3 o, glm::vec3 d, unsigned int _depth, float intensity) : beam(o, d), depth(_depth) {
         color *= glm::vec3(intensity);
     }
-
+    
     void PhotonMapper::mapScene(model::Scene& scene) {
         float total_light_intensity = 0.0f;
         for (auto light : scene.light_sources) { total_light_intensity += light->intensity; }

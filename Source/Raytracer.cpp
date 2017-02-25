@@ -33,7 +33,7 @@
 #define _PHOTON_MAPPING_ENABLE_ false
 #define _CAUSTICS_ENABLE_ false
 #define _SOFT_SHADOWS false
-#define _SOFT_SHADOW_SAMPLES 5
+#define _SOFT_SHADOW_SAMPLES 10
 
 
 //VS14 FIX
@@ -66,7 +66,7 @@ int t;
 /* FUNCTIONS                                                                   */
 
 void Update();
-void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::PhotonMapper& photon_mapper);
+void Draw(model::Scene& scene, photonmap::PhotonMap& photon_map, photonmap::PhotonMapper& photon_mapper);
 glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth=0);
 
 int main(int argc, char** argv) {
@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
     //m.setUseOptimisationStructure(false);
     // Assign the glass material to the model
     for (auto& t : *m.getFaces()) {
-        //t.setMaterial(glass_material);
+        t.setMaterial(glass_material);
         //t.color = glm::vec3(0.78f, 0.90f, 1.0f);
         /*t.n0 = -t.n0;
         t.n1 = -t.n1;
@@ -271,8 +271,10 @@ void Update() {
 	std::cout << "Render time: " << dt << " ms." << std::endl;*/
 }
 
-void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::PhotonMapper& photon_mapper) {
-	if (SDL_MUSTLOCK(screen))
+void Draw(model::Scene& scene, photonmap::PhotonMap& photon_map, photonmap::PhotonMapper& photon_mapper) {
+    
+    // Perform draw
+    if (SDL_MUSTLOCK(screen))
 		SDL_LockSurface(screen);
 
 	float DOF_focus_length = 2.750f;
@@ -389,7 +391,7 @@ void Draw(model::Scene scene, photonmap::PhotonMap& photon_map, photonmap::Photo
 //Returns colour of nearest intersecting triangle
 glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth) {
     // Recursion depth limit breaker:
-    if (depth > 50) { /*std::cout << "RECURSION DEPTH EXCEEDED" << std::endl;*/ return glm::vec3(0.0f, 0.0f, 0.0f); }
+    if (depth > 5) { /*std::cout << "RECURSION DEPTH EXCEEDED" << std::endl;*/ return glm::vec3(0.0f, 0.0f, 0.0f); }
 
 
     Intersection closest_intersect;
