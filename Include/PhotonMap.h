@@ -13,6 +13,8 @@
 #include <random>
 #include <functional>
 #include "Utility.h"
+#include <iostream>
+#include <fstream>
 
 static std::default_random_engine generator(time(nullptr));
 static std::uniform_real_distribution<float> distribution(0, 1);
@@ -69,6 +71,62 @@ namespace photonmap {
 		inline unsigned int size() {
 			return photons.size();
 		}
+
+        // Save and load
+        inline void save(std::string filepath) {
+            std::ofstream myfile;
+            myfile.open(filepath, std::ios::out | std::ios::binary);
+            //myfile << (int)photons.size();
+            int photon_count = photons.size();
+            myfile.write(reinterpret_cast<char*>(&photon_count), sizeof(int));
+
+            for (auto& p : photons) {
+                glm::vec3 colour, direction, position;
+                colour    = p.color;
+                direction = p.direction;
+                position  = p.position;
+
+                myfile.write(reinterpret_cast<char*>(&colour), sizeof(glm::vec3));
+                myfile.write(reinterpret_cast<char*>(&direction), sizeof(glm::vec3));
+                myfile.write(reinterpret_cast<char*>(&position), sizeof(glm::vec3));
+            }
+            myfile.close();
+        }
+
+        inline bool file_exists(std::string filepath) {
+            std::ifstream myfile(filepath);
+            return myfile.good();
+        }
+
+        inline bool load(std::string filepath) {
+            std::ifstream myfile;
+            myfile.open(filepath, std::ios::in | std::ios::binary);
+            if (myfile.is_open()) {
+
+                int photon_count = 0;
+                myfile.read(reinterpret_cast<char*>(&photon_count), sizeof(int));
+
+                for (int i = 0; i < photon_count; i++) {
+                    glm::vec3 colour, direction, position;
+
+                    myfile.read(reinterpret_cast<char*>(&colour), sizeof(glm::vec3));
+                    myfile.read(reinterpret_cast<char*>(&direction), sizeof(glm::vec3));
+                    myfile.read(reinterpret_cast<char*>(&position), sizeof(glm::vec3));
+
+                    this->emplace_back(colour, position, direction);
+                }
+                myfile.close();
+            } else {
+                myfile.close();
+                return false;
+            }
+            return true;
+        }
+
+
+
+
+
 		// Must return the number of data points
 		inline size_t kdtree_get_point_count() const { return photons.size(); }
 

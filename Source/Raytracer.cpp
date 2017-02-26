@@ -30,8 +30,8 @@
 #define _AA_FACTOR 16.0f
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ false
-#define _PHOTON_MAPPING_ENABLE_ false
-#define _CAUSTICS_ENABLE_ false
+#define _PHOTON_MAPPING_ENABLE_ true
+#define _CAUSTICS_ENABLE_ true
 #define _SOFT_SHADOWS false
 #define _SOFT_SHADOW_SAMPLES 10
 
@@ -644,7 +644,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         if (_PHOTON_MAPPING_ENABLE_&&_CAUSTICS_ENABLE_) {
             // TODO: Pull caustic data from photon map
             std::vector<std::pair<size_t, float>> caustic_photons_in_range;
-            photon_map.getCausticPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE/**0.0025*/*0.001, caustic_photons_in_range);
+            photon_map.getCausticPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE/**0.0025*/*0.0001, caustic_photons_in_range);
 
             glm::vec3 total_energy = glm::vec3(0.0);
             for (auto pht : caustic_photons_in_range) {
@@ -654,12 +654,12 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
 
                 total_energy += energy;
             }
-            total_energy /= 350/*550*/;
+            total_energy /= 250/*550*/;
 
             caustic_factor = total_energy;
         }
         //caustic_factor = glm::pow(caustic_factor, glm::vec3(1.75f))*0.75f;
-        caustic_factor = glm::clamp(caustic_factor, 0.0f, 0.60f);
+        caustic_factor = glm::clamp(caustic_factor, 0.0f, 0.85f);
         // *********************************************************************** //
         // GET MATERIAL TYPE
         /*

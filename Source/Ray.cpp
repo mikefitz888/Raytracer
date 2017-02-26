@@ -20,15 +20,16 @@ glm::vec3 Ray::getIntersection(Triangle& triangle) {
 bool Ray::closestIntersection(/*const std::vector<Triangle>& triangles*/const Scene &scene, Intersection& closestIntersection) {
 	bool result = false;
 
-	//float min_dist = std::numeric_limits<float>::max();
-	//glm::vec3 position;
+	float min_dist = std::numeric_limits<float>::max();
+	glm::vec3 position;
     glm::vec3 inverse_direction = 1.0f/this->direction;
 	int index;
 
-    closestIntersection.distance = std::numeric_limits<float>::max();
+    //closestIntersection.distance = std::numeric_limits<float>::max();
+    //closestIntersection.triangle = nullptr;
 
 	//int i = -1;
-    //Triangle *triangle_result = nullptr;
+    Triangle *triangle_result = nullptr;
     for (auto* model : scene.models) {
 
         // Check for collision with model outer bounding box:
@@ -71,30 +72,27 @@ bool Ray::closestIntersection(/*const std::vector<Triangle>& triangles*/const Sc
                         float dy = origin.y - intersect.y;
                         float dz = origin.z - intersect.z;
                         float distance = dx*dx + dy*dy + dz*dz; //glm::distance(origin, intersect)*glm::distance(origin, intersect); //(intersect.x - origin.x)*(intersect.x - origin.x) + (intersect.y - origin.y)*(intersect.y - origin.y); // glm::distance(origin, intersect);
-                        if (distance < closestIntersection.distance) {
+                        if (distance < min_dist) {
 
                             // Check normal
                             float factor = glm::dot(direction, triangle.normal);
                             if (factor > FLT_EPSILON && !triangle.twoSided) { continue; }
 
                             result = true;
-                            //min_dist = distance;
-                            closestIntersection.distance = distance;
-                            //position = intersect;
-                            closestIntersection.position = intersect;
-                            //triangle_result = &triangle;
-                            closestIntersection.triangle = &triangle;
+                            min_dist = distance;
+                            position = intersect;
+                            triangle_result = &triangle;
                         }
                     }
                 }
-            //}
-        }
+            }
+        //}
     }
-	//if (result) {
-		closestIntersection.distance = sqrt(closestIntersection.distance);
-		//closestIntersection.position = position;
-        //closestIntersection.triangle = triangle_result;//triangles[index];
-	//}
+	if (result) {
+		closestIntersection.distance = sqrt(min_dist);
+		closestIntersection.position = position;
+        closestIntersection.triangle = triangle_result;//triangles[index];
+	}
 	return result;
 }
 
