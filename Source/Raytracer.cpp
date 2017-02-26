@@ -89,8 +89,11 @@ int main(int argc, char** argv) {
     default_material = new Material();
     glass_material = new Material();
     glass_material->materialSetTypeRefractive(1.5f);
-    //glass_material->setSpecularFactor(0.75f);
-    //glass_material->setSpecularPower(4.0f);
+    glass_material->setSpecularFactor(0.60f);
+    glass_material->setSpecularPower(32.0f);
+    glass_material->setReflectionFactor(0.10f);
+    glass_material->setGlossiness(1.0f);
+
 
     metal_material = new Material();
     metal_material->materialSetTypeReflective(0.75f, 0.50f);
@@ -109,6 +112,7 @@ int main(int argc, char** argv) {
     // Assign the glass material to the model
     for (auto& t : *m.getFaces()) {
         t.setMaterial(glass_material);
+        
         //t.color = glm::vec3(0.78f, 0.90f, 1.0f);
         /*t.n0 = -t.n0;
         t.n1 = -t.n1;
@@ -573,7 +577,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
 
                 glm::vec3 dir_to_light = light_position - closest_intersect.position;
                 float light_distance = glm::length(dir_to_light);
-                float light_factor_x = 1.0f - glm::clamp((light_distance / 2.35f), 0.0f, 1.0f);
+                float light_factor_x = 1.0f - glm::clamp(((light_distance - 0.30f) / 2.2f), 0.0f, 1.0f);
                 light_factor_x = glm::clamp((double)light_factor_x, 0.0, 1.0);
                 light_factor_x *= glm::dot(/*t.normal*/surface_normal, glm::normalize(dir_to_light));
                 //light_factor_x *= glm::dot(-dir_to_light, glm::vec3(0.0f, 1.0f, 0.0f)); // <-- light points downwards
@@ -597,7 +601,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
             const glm::vec3 light_position(0.0, -0.75, 0.0);
             glm::vec3 dir_to_light = light_position - closest_intersect.position;
             float light_distance = glm::length(dir_to_light);
-            light_factor = 1.0f - glm::clamp((light_distance / 2.5f), 0.0f, 1.0f);
+            light_factor = 1.0f - glm::clamp(((light_distance-0.30f) / 2.2f), 0.0f, 1.0f);
             light_factor = glm::clamp((double)light_factor, 0.0, 1.0);
             light_factor *= glm::dot(/*t.normal*/surface_normal, glm::normalize(dir_to_light));
 
@@ -644,7 +648,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         if (_PHOTON_MAPPING_ENABLE_&&_CAUSTICS_ENABLE_) {
             // TODO: Pull caustic data from photon map
             std::vector<std::pair<size_t, float>> caustic_photons_in_range;
-            photon_map.getCausticPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE/**0.0025*/*0.0001, caustic_photons_in_range);
+            photon_map.getCausticPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE/**0.0025*/*0.00025, caustic_photons_in_range);
 
             glm::vec3 total_energy = glm::vec3(0.0);
             for (auto pht : caustic_photons_in_range) {
@@ -654,7 +658,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
 
                 total_energy += energy;
             }
-            total_energy /= 250/*550*/;
+            total_energy /= 75/*550*/;
 
             caustic_factor = total_energy;
         }
@@ -665,7 +669,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         /*
           Depending on material type, we may send out new rays to pull reflection/refraction data
         */
-        glm::vec3 light_colour(1.0f, 0.90f, 0.65f);
+        glm::vec3 light_colour(1.0f, 0.86f, 0.65f);//glm::vec3 light_colour(1.0f, 1.0f, 1.0f);// glm::vec3 light_colour(1.0f, 0.90f, 0.65f);
         glm::vec3 output_colour;
 
         // Determine default base colour
@@ -742,10 +746,23 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
                     //std::cin >> a;
 
                     //refr_dir = direction+glm::vec3(0.25f);
-                    glm::vec3 refr_ray_pos = closest_intersect.position + refr_dir*0.0001f;
+                    glm::vec3 refr_ray_pos = closest_intersect.position + refr_dir*0.000001f;
 
                     glm::vec3 refract_colour = Trace(refr_ray_pos, refr_dir, photon_map, scene, photon_mapper, depth + 1);
                     output_colour = t.color*refract_colour + SpecularFactor;
+
+                    // Add in weighted reflections
+                    if (material->getReflectionFactor() > 0.0f) {
+                        glm::vec3 refl_dir = glm::reflect(direction, glm::normalize(surface_normal));
+                        glm::vec3 refl_ray_pos = closest_intersect.position + refl_dir*0.0000001f;
+
+                        // Get reflection colour
+                        glm::vec3 reflect_colour = Trace(refl_ray_pos, refl_dir, photon_map, scene, photon_mapper, depth + 1);
+                        output_colour *= 1.0f-material->getReflectionFactor();
+                        output_colour += reflect_colour*material->getReflectionFactor();
+                    }
+                    
+
                     //output_colour = Trace(triangles, closest_intersect.position + refr_dir*0.0001f, refr_dir, photon_map, scene, photon_mapper, depth + 1);
                 } break;
 

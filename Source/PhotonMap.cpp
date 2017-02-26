@@ -1,7 +1,7 @@
 #include "../Include/PhotonMap.h"
 
 //#include "../Include/SDLauxiliary.h"
-
+#define _GLOBAL_ILLUMINATION_ENABLE_ true
 namespace photonmap {
 	Photon::Photon(glm::vec3 o, glm::vec3 d, unsigned int _depth, float intensity) : beam(o, d), depth(_depth) {
         color *= glm::vec3(intensity);
