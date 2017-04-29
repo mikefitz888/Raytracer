@@ -1,4 +1,5 @@
 #include <iostream>
+#include <omp.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -26,15 +27,21 @@
 #define PREVIEW_RENDER true
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE false
-#define _AA_FACTOR 16.0f
+#define _AA_ENABLE true
+#define _AA_FACTOR 25.0f
 #define _TEXTURE_ENABLE_ false
-#define _GLOBAL_ILLUMINATION_ENABLE_ false
+#define _GLOBAL_ILLUMINATION_ENABLE_ true
 #define _PHOTON_MAPPING_ENABLE_ true
 #define _CAUSTICS_ENABLE_ true
 #define _SOFT_SHADOWS false
-#define _SOFT_SHADOW_SAMPLES 10
+#define _SOFT_SHADOW_SAMPLES 50
 
+#define NUM_THREADS 8
+
+
+// Quality control
+// - Controls the number of samples for the final gather. A higher number will produce a smoother result
+#define FINAL_GATHER_SAMPLES 5
 
 //VS14 FIX
 #ifdef _WIN32
@@ -70,7 +77,7 @@ void Draw(model::Scene& scene, photonmap::PhotonMap& photon_map, photonmap::Phot
 glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth=0);
 
 int main(int argc, char** argv) {
-
+    omp_set_num_threads(NUM_THREADS);
    /* glm::vec3 vector_a(0.245, 0.454, 0.6568);
     vector_a = glm::normalize(vector_a);
     glm::vec3 vector_b = glm::refract(glm::normalize(vector_a), glm::normalize(-glm::vec3(0.4, 0.5, 0.6)), 0.7f);
@@ -107,7 +114,7 @@ int main(int argc, char** argv) {
     cornell_box.setUseOptimisationStructure(false);
     
 
-	model::Model m("dragon.obj");
+	/*model::Model m("dragon.obj");
     //m.setUseOptimisationStructure(false);
     // Assign the glass material to the model
     for (auto& t : *m.getFaces()) {
@@ -117,13 +124,13 @@ int main(int argc, char** argv) {
         /*t.n0 = -t.n0;
         t.n1 = -t.n1;
         t.n2 = -t.n2;*/
-    }
-    m.generateOctree();
+    //}
+    //m.generateOctree();*/
 
 	model::Scene scene;
     
     scene.addModel(&cornell_box);
-    scene.addModel(&m); // Bench
+    //scene.addModel(&m); // Dragon
 	
 	model::LightSource basic_light(glm::vec3(0.0, -0.85, 0.0), glm::vec3(0, 1.0, 0), 8);
 	scene.addLight(basic_light);
@@ -153,7 +160,7 @@ int main(int argc, char** argv) {
 
 
 #if _PHOTON_MAPPING_ENABLE_ == 1
-	photonmap::PhotonMapper photon_mapper(scene, 100000, 10); //Number of photons, number of bounces
+	photonmap::PhotonMapper photon_mapper(scene, 50000, 10); //Number of photons, number of bounces
 	photonmap::PhotonMap photon_map(&photon_mapper);
 	//scene.removeFront();
 	glm::vec3 campos(0.0, 0.0, -2.0);
@@ -205,9 +212,9 @@ int main(int argc, char** argv) {
 		// TEMP DEBUG RENDER PHOTONS
 
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getDirectPhotons();
-		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
+		std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getShadowPhotons(); SDL_FillRect(screen, NULL, 0xFFFFFF);
-        std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getCausticPhotons();
+        //std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getCausticPhotons();
 
 		//printf("\n \nPHOTONS: %d \n", photoninfo.size());
 		int count = 0;
@@ -227,7 +234,7 @@ int main(int argc, char** argv) {
 
 			// Draw point (only if the point isn't behind the camera, otherwise we get weird wrapping)
 			if ((pos.z - campos.z) > 0.0) {
-				PutPixelSDL(screen, xScr, yScr, pi.color*100.0f);
+				PutPixelSDL(screen, xScr, yScr, pi.color*255.0f);
 			}
 			count++;
 		}
@@ -496,7 +503,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         if (_PHOTON_MAPPING_ENABLE_&&_GLOBAL_ILLUMINATION_ENABLE_) {
             //photon_radiance = photon_map.gatherPhotons(closest_intersect.position, triangles[closest_intersect.index].getNormal());
             //baseColour = photon_map.gatherPhotons(closest_intersect.position, ray.direction);
-            std::vector<std::pair<size_t, float>> direct_photons_in_range, shadow_photons_in_range, indirect_photons_in_range;
+        //    std::vector<std::pair<size_t, float>> direct_photons_in_range, shadow_photons_in_range, indirect_photons_in_range;
 
             //photon_map.getDirectPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, direct_photons_in_range);
             //photon_map.getShadowPhotonsRadius(closest_intersect.position, PHOTON_GATHER_RANGE, shadow_photons_in_range);
@@ -509,9 +516,9 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
 
 
             //colorAccumulator
-            glm::vec3 total_colour_energy, total_light_energy, total_energy;
-            float samples_intensity = 0;
-            float samples_colour_bleed = 0;
+         //   glm::vec3 total_colour_energy, total_light_energy, total_energy;
+         //   float samples_intensity = 0;
+        //    float samples_colour_bleed = 0;
 
             /*
                 EXPERIMENT:
@@ -525,26 +532,26 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
                         get combined after.
 
             */
-            for (auto pht : indirect_photons_in_range) {
-                size_t id = pht.first;
-                glm::vec3 energy = photon_mapper.indirect_photons.photons[id].color;
-                float distance = pht.second;
+        //    for (auto pht : indirect_photons_in_range) {
+        //        size_t id = pht.first;
+        //        glm::vec3 energy = photon_mapper.indirect_photons.photons[id].color;
+        //        float distance = pht.second;
 
                 // Check that sample direction matches surface normal
-                glm::vec3 normal = surface_normal;//t.normal;
-                glm::vec3 photon_direction = photon_mapper.indirect_photons.photons[id].direction;
-                float     normal_factor = 1.0 - glm::dot(photon_direction, /*t.normal*/normal);
-                if (normal_factor >= 0) {
+       //         glm::vec3 normal = surface_normal;//t.normal;
+        //        glm::vec3 photon_direction = photon_mapper.indirect_photons.photons[id].direction;
+       //         float     normal_factor = 1.0 - glm::dot(photon_direction, /*t.normal*/normal);
+      //          if (normal_factor >= 0) {
                     //float distance_factor = 1.0; // If using sampling method 1), disable this
-                    float distance_factor = 1.0f - glm::clamp(distance / PHOTON_GATHER_RANGE, 0.0, 1.0);
+      //              float distance_factor = 1.0f - glm::clamp(distance / PHOTON_GATHER_RANGE, 0.0, 1.0);
 
-                    samples_colour_bleed += normal_factor*glm::length(energy); //<-- gives a very smooth result, but technically not all that correct (example: http://i.imgur.com/g8EIXIJ.png)
-                    samples_intensity += normal_factor; // <-- Only weight samples by their contribution. This reduces visual artifacts
-                    total_colour_energy += energy*normal_factor*distance_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
-                    total_light_energy += glm::vec3(glm::length(energy))*distance_factor;
-                }
+      //              samples_colour_bleed += normal_factor*glm::length(energy); //<-- gives a very smooth result, but technically not all that correct (example: http://i.imgur.com/g8EIXIJ.png)
+      //              samples_intensity += normal_factor; // <-- Only weight samples by their contribution. This reduces visual artifacts
+      //              total_colour_energy += energy*normal_factor*distance_factor;//*(1.0f  - (float)glm::sqrt(distance)/ (float)sqrt(PHOTON_GATHER_RANGE));
+      //              total_light_energy += glm::vec3(glm::length(energy))*distance_factor;
+      //          }
 
-            }
+     //       }
             // 1) SAMPLE BASED METHOD, DOES NOT REDUCE BRIGHTNESS BASED ON PHOTON DENSITY, but is smooth
             /*total_colour_energy /= samples_colour_bleed;
             total_light_energy /= samples_intensity;
@@ -552,12 +559,12 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
 
             // 2) PHOTON DENSITY REDUCTION
             //total_colour_energy /= 200;
-            total_colour_energy /= samples_colour_bleed;
-            total_light_energy /= 2;
-            total_energy = (total_light_energy*total_colour_energy)/*0.5f*/;
+            //total_colour_energy /= samples_colour_bleed;
+            //total_light_energy /= 2;
+          //  total_energy = (total_light_energy*total_colour_energy)/*0.5f*/;
 
-            //photon_radiance = closest_intersect.color*total_energy;
-            photon_radiance = RENDERER::finalGather(closest_intersect.position, closest_intersect.triangle, scene, photon_map, photon_mapper);
+           // photon_radiance = /*closest_intersect.color**/total_energy;
+            photon_radiance = RENDERER::finalGather(closest_intersect.position, closest_intersect.triangle, scene, photon_map, photon_mapper, 1, FINAL_GATHER_SAMPLES);
         }
 
         // SIMPLE LIGHTING
@@ -669,7 +676,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         /*
           Depending on material type, we may send out new rays to pull reflection/refraction data
         */
-        glm::vec3 light_colour(1.0f, 0.86f, 0.65f);//glm::vec3 light_colour(1.0f, 1.0f, 1.0f);// glm::vec3 light_colour(1.0f, 0.90f, 0.65f);
+        glm::vec3 light_colour(1.0f, 0.86f, 0.95f);//glm::vec3 light_colour(1.0f, 1.0f, 1.0f);// glm::vec3 light_colour(1.0f, 0.90f, 0.65f);
         glm::vec3 output_colour;
 
         // Determine default base colour

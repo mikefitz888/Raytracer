@@ -2,6 +2,7 @@
 
 //#include "../Include/SDLauxiliary.h"
 #define _GLOBAL_ILLUMINATION_ENABLE_ true
+
 namespace photonmap {
 	Photon::Photon(glm::vec3 o, glm::vec3 d, unsigned int _depth, float intensity) : beam(o, d), depth(_depth) {
         color *= glm::vec3(intensity);
@@ -106,7 +107,7 @@ namespace photonmap {
 
                             thread_indirect_photons.emplace_back(radiance, intersection, ray.direction);
 
-                            float p = (radiance.r + radiance.g + radiance.b) * 0.9;
+                            float p = 1.0f- _COLOUR_PHOTON_DISCARD_CHANCE;//(radiance.r + radiance.g + radiance.b) * 0.99;
                             float rand = (float)std::rand() / (float)RAND_MAX;
                             if (rand > p) {
                                 break;
@@ -122,17 +123,19 @@ namespace photonmap {
                             }
                         }
 
-                        // Weighted control to make a number of photons not transfer colour
+                        // Weighted control to make a number of photons do not transfer colour
                         float rand_color = (float)rand() / (float)RAND_MAX;
                         if (rand_color > 0.95) {
                             radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance);
                         } else {
-                            radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance * closest.triangle->color);
+                            radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance * closest.triangle->color*_COLOUR_BLEED_INTENSITY);
                         }
 
                         ray.origin = intersection + 0.001f*normal;
                         ray.direction = reflection;
-                    } else break;
+                    } else {
+                        break;
+                    }
                 }
             }
         #pragma omp critical 
@@ -140,7 +143,7 @@ namespace photonmap {
                 for (auto& p : thread_direct_photons) {
                     direct_photons.emplace_back(p.color, p.position, p.direction);
                 }
-                for (auto& p : thread_direct_photons) {
+                for (auto& p : thread_indirect_photons) {
                     indirect_photons.emplace_back(p.color, p.position, p.direction);
                 }
                 for (auto& p : thread_shadow_photons) {
@@ -149,12 +152,12 @@ namespace photonmap {
             }
         }
 		//Weight photons
-		for (auto photon : direct_photons.photons) {
+		/*for (auto photon : direct_photons.photons) {
 			photon.color /= (direct_photons.size() + indirect_photons.size());
 		}
 		for (auto photon : indirect_photons.photons) {
 			photon.color /= (direct_photons.size() + indirect_photons.size());
-		}
+		}*/
 #endif
 
         // ******************************************************************************** //
@@ -397,6 +400,8 @@ namespace photonmap {
 		const float point[3] = { pos.x, pos.y, pos.z };
 		nanoflann::SearchParams params;
 		params.sorted = false;
+        params.checks = false;
+        //params.eps = false;
 		const size_t count = indirect_photon_map.radiusSearch(point, radius, indices, params);
 	}
 

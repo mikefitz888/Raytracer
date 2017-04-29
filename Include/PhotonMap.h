@@ -16,6 +16,10 @@
 #include <iostream>
 #include <fstream>
 
+// PHOTON MAP QUALITY SETTINGS
+#define _COLOUR_BLEED_INTENSITY 3.0f
+#define _COLOUR_PHOTON_DISCARD_CHANCE 0.05f
+
 static std::default_random_engine generator(time(nullptr));
 static std::uniform_real_distribution<float> distribution(0, 1);
 static auto Rand = std::bind(distribution, generator);

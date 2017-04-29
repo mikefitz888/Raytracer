@@ -5,13 +5,13 @@ namespace RENDERER {
 		if (depth == 0) {
 			//return photon map estimate
 			std::vector<std::pair<size_t, float>> direct_photons_in_range, shadow_photons_in_range, indirect_photons_in_range;
-			photon_map.getIndirectPhotonsRadius(point, 0.1, indirect_photons_in_range);
+			photon_map.getIndirectPhotonsRadius(point, 0.01, indirect_photons_in_range);
 
 			glm::vec3 total_colour_energy, total_light_energy, total_energy;
 			float samples_intensity = 0;
 			float samples_colour_bleed = 0;
 
-			for (auto pht : indirect_photons_in_range) {
+			for (auto& pht : indirect_photons_in_range) {
 				size_t id = pht.first;
 				glm::vec3 energy = photon_mapper.indirect_photons.photons[id].color;
 				float distance = pht.second;
