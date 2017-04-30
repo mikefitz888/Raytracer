@@ -27,21 +27,21 @@
 #define PREVIEW_RENDER true
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE false
+#define _AA_ENABLE true
 #define _AA_FACTOR 25.0f
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ true
 #define _PHOTON_MAPPING_ENABLE_ true
 #define _CAUSTICS_ENABLE_ true
 #define _SOFT_SHADOWS true
-#define _SOFT_SHADOW_SAMPLES 30
+#define _SOFT_SHADOW_SAMPLES 20
 
 #define NUM_THREADS 4
 
 
 // Quality control
 // - Controls the number of samples for the final gather. A higher number will produce a smoother result
-#define FINAL_GATHER_SAMPLES 20
+#define FINAL_GATHER_SAMPLES 12
 
 //VS14 FIX
 #ifdef _WIN32
