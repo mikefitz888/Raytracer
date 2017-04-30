@@ -32,16 +32,16 @@
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ true
 #define _PHOTON_MAPPING_ENABLE_ true
-#define _CAUSTICS_ENABLE_ false
+#define _CAUSTICS_ENABLE_ true
 #define _SOFT_SHADOWS true
 #define _SOFT_SHADOW_SAMPLES 30
 
-#define NUM_THREADS 5
+#define NUM_THREADS 4
 
 
 // Quality control
 // - Controls the number of samples for the final gather. A higher number will produce a smoother result
-#define FINAL_GATHER_SAMPLES 5
+#define FINAL_GATHER_SAMPLES 20
 
 //VS14 FIX
 #ifdef _WIN32
@@ -61,8 +61,8 @@ using model::AABB;
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES                                                            */
 
-const int SCREEN_WIDTH = 200;
-const int SCREEN_HEIGHT = 200;
+const int SCREEN_WIDTH = 500;
+const int SCREEN_HEIGHT = 500;
 SDL_Surface* screen;
 bitmap_image *texture;
 bitmap_image *normal_texture;
@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
     //m.setUseOptimisationStructure(false);
     // Assign the glass material to the model
     for (auto& t : *m.getFaces()) {
-        //t.setMaterial(glass_material);
+        t.setMaterial(glass_material);
         //t.color = glm::vec3(0.78f, 0.90f, 1.0f);
         /*t.n0 = -t.n0;
         t.n1 = -t.n1;
@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
     float dt = float(t2 - t);
     t = t2;
     std::cout << "Photon map generated in time: " << dt << " ms." << std::endl;
-
+    std::cout << "-- PRESS SPACE TO BEGIN RENDER --" << std::endl;
 	Uint8* keystate = SDL_GetKeyState(0);
 	bool run = true;
 	while (/*keystate[SDLK_SPACE]*/run &&  NoQuitMessageSDL()) {
@@ -211,9 +211,9 @@ int main(int argc, char** argv) {
 		// TEMP DEBUG RENDER PHOTONS
 
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getDirectPhotons();
-		std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
+		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getShadowPhotons(); SDL_FillRect(screen, NULL, 0xFFFFFF);
-        //std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getCausticPhotons();
+        std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getCausticPhotons();
 
 		//printf("\n \nPHOTONS: %d \n", photoninfo.size());
 		int count = 0;
@@ -578,7 +578,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
             for (int count = 0; count < _SOFT_SHADOW_SAMPLES; count++) {
 
 
-                const glm::vec3 light_position = glm::linearRand(glm::vec3(-0.18, -0.80f, -0.18 - 0.75), glm::vec3(0.18, -0.85f, 0.18 - 0.75));
+                const glm::vec3 light_position = glm::linearRand(glm::vec3(-0.18, -0.80f, -0.18), glm::vec3(0.18, -0.85f, 0.18));
 
 
                 glm::vec3 dir_to_light = light_position - closest_intersect.position;
@@ -621,6 +621,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
                     light_factor = 0.0;
                 }
             }
+            light_factor = glm::clamp(light_factor, 0.0f, 1.0f)*1.5f;
         }
 
 
@@ -714,7 +715,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
                     glm::vec3 refl_ray_pos = closest_intersect.position + refl_dir*0.00001f;
 
                     // Get reflection colour
-                    glm::vec3 reflect_colour = Trace(refl_ray_pos, refl_dir, photon_map, scene, photon_mapper, depth + 1);
+                    glm::vec3 reflect_colour = Trace(refl_ray_pos, refl_dir, photon_map, scene, photon_mapper, depth + 1)*2.0f;
 
 
                     // Combine reflect colour with base colour by factor
@@ -764,7 +765,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
                     //refr_dir = direction+glm::vec3(0.25f);
                     glm::vec3 refr_ray_pos = closest_intersect.position + refr_dir*0.000001f;
 
-                    glm::vec3 refract_colour = Trace(refr_ray_pos, refr_dir, photon_map, scene, photon_mapper, depth + 1);
+                    glm::vec3 refract_colour = Trace(refr_ray_pos, refr_dir, photon_map, scene, photon_mapper, depth + 1)*2.0f;
                     output_colour = t.color*refract_colour + SpecularFactor;
 
                     // Add in weighted reflections
@@ -772,8 +773,8 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
                         glm::vec3 refl_dir = glm::reflect(direction, glm::normalize(surface_normal));
                         glm::vec3 refl_ray_pos = closest_intersect.position + refl_dir*0.0000001f;
 
-                        // Get reflection colour
-                        glm::vec3 reflect_colour = Trace(refl_ray_pos, refl_dir, photon_map, scene, photon_mapper, depth + 1);
+                        // Get reflection colour (Have to multiply by two as the result from trace gets divided by 2 (Due to calibration requirements, and lack of time to re-adjust colours:P)
+                        glm::vec3 reflect_colour = Trace(refl_ray_pos, refl_dir, photon_map, scene, photon_mapper, depth + 1)*2.0f;
                         output_colour *= 1.0f-material->getReflectionFactor();
                         output_colour += reflect_colour*material->getReflectionFactor();
                     }
