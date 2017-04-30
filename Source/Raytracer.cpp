@@ -27,16 +27,16 @@
 #define PREVIEW_RENDER true
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE true
+#define _AA_ENABLE false
 #define _AA_FACTOR 25.0f
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ true
 #define _PHOTON_MAPPING_ENABLE_ true
-#define _CAUSTICS_ENABLE_ true
-#define _SOFT_SHADOWS false
-#define _SOFT_SHADOW_SAMPLES 50
+#define _CAUSTICS_ENABLE_ false
+#define _SOFT_SHADOWS true
+#define _SOFT_SHADOW_SAMPLES 30
 
-#define NUM_THREADS 8
+#define NUM_THREADS 5
 
 
 // Quality control
@@ -61,8 +61,8 @@ using model::AABB;
 /* ----------------------------------------------------------------------------*/
 /* GLOBAL VARIABLES                                                            */
 
-const int SCREEN_WIDTH = 500;
-const int SCREEN_HEIGHT = 500;
+const int SCREEN_WIDTH = 200;
+const int SCREEN_HEIGHT = 200;
 SDL_Surface* screen;
 bitmap_image *texture;
 bitmap_image *normal_texture;
@@ -114,23 +114,22 @@ int main(int argc, char** argv) {
     cornell_box.setUseOptimisationStructure(false);
     
 
-	/*model::Model m("dragon.obj");
+	model::Model m("dragon.obj");
     //m.setUseOptimisationStructure(false);
     // Assign the glass material to the model
     for (auto& t : *m.getFaces()) {
-        t.setMaterial(glass_material);
-        
+        //t.setMaterial(glass_material);
         //t.color = glm::vec3(0.78f, 0.90f, 1.0f);
         /*t.n0 = -t.n0;
         t.n1 = -t.n1;
         t.n2 = -t.n2;*/
-    //}
-    //m.generateOctree();*/
+    }
+    m.generateOctree();
 
 	model::Scene scene;
     
     scene.addModel(&cornell_box);
-    //scene.addModel(&m); // Dragon
+    scene.addModel(&m); // Dragon
 	
 	model::LightSource basic_light(glm::vec3(0.0, -0.85, 0.0), glm::vec3(0, 1.0, 0), 8);
 	scene.addLight(basic_light);
@@ -160,7 +159,7 @@ int main(int argc, char** argv) {
 
 
 #if _PHOTON_MAPPING_ENABLE_ == 1
-	photonmap::PhotonMapper photon_mapper(scene, 50000, 10); //Number of photons, number of bounces
+	photonmap::PhotonMapper photon_mapper(scene, 150000, 10); //Number of photons, number of bounces
 	photonmap::PhotonMap photon_map(&photon_mapper);
 	//scene.removeFront();
 	glm::vec3 campos(0.0, 0.0, -2.0);
@@ -402,7 +401,7 @@ void Draw(model::Scene& scene, photonmap::PhotonMap& photon_map, photonmap::Phot
 //Returns colour of nearest intersecting triangle
 glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& photon_map, model::Scene& scene, photonmap::PhotonMapper& photon_mapper, int depth) {
     // Recursion depth limit breaker:
-    if (depth > 5) { /*std::cout << "RECURSION DEPTH EXCEEDED" << std::endl;*/ return glm::vec3(0.0f, 0.0f, 0.0f); }
+    if (depth > 9) {/* std::cout << "RECURSION DEPTH EXCEEDED" << std::endl;*/ return glm::vec3(0.0f, 0.0f, 0.0f); }
 
 
     Intersection closest_intersect;
@@ -579,12 +578,12 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
             for (int count = 0; count < _SOFT_SHADOW_SAMPLES; count++) {
 
 
-                const glm::vec3 light_position = glm::linearRand(glm::vec3(-0.35, -0.90f, -0.35), glm::vec3(0.35, -0.98f, 0.35));
+                const glm::vec3 light_position = glm::linearRand(glm::vec3(-0.18, -0.80f, -0.18 - 0.75), glm::vec3(0.18, -0.85f, 0.18 - 0.75));
 
 
                 glm::vec3 dir_to_light = light_position - closest_intersect.position;
                 float light_distance = glm::length(dir_to_light);
-                float light_factor_x = 1.0f - glm::clamp(((light_distance - 0.30f) / 2.2f), 0.0f, 1.0f);
+                float light_factor_x = 1.0f - glm::clamp(((light_distance - 0.30f) / 2.4f), 0.0f, 1.0f);
                 light_factor_x = glm::clamp((double)light_factor_x, 0.0, 1.0);
                 light_factor_x *= glm::dot(/*t.normal*/surface_normal, glm::normalize(dir_to_light));
                 //light_factor_x *= glm::dot(-dir_to_light, glm::vec3(0.0f, 1.0f, 0.0f)); // <-- light points downwards
@@ -599,16 +598,16 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
                         light_factor_x = 0.0;
                     }
                 }
-                light_factor += light_factor_x;
+                light_factor += glm::max(light_factor_x, 0.0f);
             }
             light_factor /= _SOFT_SHADOW_SAMPLES;
             light_factor = glm::clamp(light_factor, 0.0f, 1.0f)*1.5f;
         } else {
             //const glm::vec3 light_position(-30.0, -30, 0.0);
-            const glm::vec3 light_position(0.0, -0.75, 0.0);
+            const glm::vec3 light_position(0.0, -0.75, -0.60);
             glm::vec3 dir_to_light = light_position - closest_intersect.position;
             float light_distance = glm::length(dir_to_light);
-            light_factor = 1.0f - glm::clamp(((light_distance-0.30f) / 2.2f), 0.0f, 1.0f);
+            light_factor = 1.0f - glm::clamp(((light_distance-0.30f) / 5.2f), 0.0f, 1.0f);
             light_factor = glm::clamp((double)light_factor, 0.0, 1.0);
             light_factor *= glm::dot(/*t.normal*/surface_normal, glm::normalize(dir_to_light));
 
@@ -642,7 +641,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         } else {
             SpecularFactor = 0.0f;
         }
-        
+        SpecularFactor = glm::clamp(SpecularFactor, 0.0f, 1.0f);
 
         //light_factor = 0.0f;
 
@@ -680,9 +679,19 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         glm::vec3 output_colour;
 
         // Determine default base colour
-        glm::vec3 ambient_factor = glm::vec3(0.05f, 0.05f, 0.05f);
+        glm::vec3 ambient_factor = glm::vec3(-0.35f, -0.35f, -0.35f);
         glm::vec3 ambient_colour = glm::vec3(1.0f, 1.0f, 1.0f);
-        baseColour = baseColour * (photon_radiance + light_factor*light_colour + ambient_factor*ambient_colour + SpecularFactor) + caustic_factor;
+        baseColour = baseColour * (photon_radiance*1.85f + light_factor*light_colour*1.8f + ambient_factor*ambient_colour + SpecularFactor) + caustic_factor;
+
+        if (photon_radiance.x < 0.0f || photon_radiance.y < 0.0f || photon_radiance.z < 0.0f) {
+            std::cout << "ERROR!!! negative photon radiance" << std::endl;
+        }
+        if (light_factor < 0.0f ){
+            std::cout << "ERROR!!! negative light factor" << std::endl;
+        }
+
+
+        baseColour = glm::max(baseColour, glm::vec3(0.0f, 0.0f, 0.0f));
 
         if (t.hasMaterial()) {
             Material* material = t.getMaterial();
@@ -783,7 +792,7 @@ glm::vec3 Trace(glm::vec3 cameraPos, glm::vec3 direction, photonmap::PhotonMap& 
         //return (surface_normal + glm::vec3(1.0)) / 2.0f;
         //return (combined_normal +glm::vec3(1.0))/2.0f;
 
-        return output_colour;
+        return glm::max(output_colour*0.5f, glm::vec3(0.0f));
     }
-    return color_buffer;
+    return glm::max(color_buffer, glm::vec3(0.0f));
 }

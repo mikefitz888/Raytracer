@@ -56,98 +56,114 @@ namespace photonmap {
         **  -Refraction, requires russian-roulette style decision making for efficiency
         */
 
-        
+        bool load_indirect_map = false;
+        if (indirect_photons.file_exists("indirect_photon_data.ptm")) {
+            std::cout << std::endl;
+            std::cout << "Indirect photon map data exists in 'indirect_photon_data.ptm' would you like to load this? (Type 'y' for Yes)" << std::endl;
+            char c;
+            std::cin >> c;
 
-#pragma omp parallel
-        {
-            Intersection closest, shade;
-            std::vector<PhotonInfo> thread_indirect_photons, thread_direct_photons, thread_shadow_photons;
-#pragma omp for schedule(dynamic, 200)
-            for (int i = 0; i < number_of_photons; i++) {
-                if (i % (number_of_photons / 10) == 0) {
-                    std::cout << "     " << i << " of " << number_of_photons << " generated" << std::endl;
-                }
-                glm::vec3 origin = glm::linearRand(glm::vec3(-0.35, -0.80f, -0.35), glm::vec3(0.35, -0.95f, 0.35));
-                float u = Rand(); float v = 2 * M_PI * Rand();
-                //glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?
-                glm::vec3 direction = glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-                Ray ray(origin, direction);
-                glm::vec3 radiance = glm::dot(ray.direction, glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(1.0f); //Last term is light color (white), weighted by light direction
-                //glm::vec3 radiance = glm::vec3(1.0f);
+            if (c == 'y' || c == 'Y') {
+                load_indirect_map = true;
+            }
+            std::cout << std::endl;
+        }
 
-                for (int bounce = 0; bounce < number_of_bounces; bounce++) {
+        if (load_indirect_map) {
+            indirect_photons.load("indirect_photon_data.ptm");
+        } else {
 
-                    //bounce == 0 => direct lighting => shoot shadow photons
-                    if (ray.closestIntersection(scene, closest)) {
+    #pragma omp parallel
+            {
+                Intersection closest, shade;
+                std::vector<PhotonInfo> thread_indirect_photons, thread_direct_photons, thread_shadow_photons;
+    #pragma omp for schedule(dynamic, 200)
+                for (int i = 0; i < number_of_photons; i++) {
+                    if (i % (number_of_photons / 10) == 0) {
+                        std::cout << "     " << i << " of " << number_of_photons << " generated" << std::endl;
+                    }
+                    glm::vec3 origin = glm::linearRand(glm::vec3(-0.35, -0.80f, -0.35), glm::vec3(0.35, -0.95f, 0.35));
+                    float u = Rand(); float v = 2 * M_PI * Rand();
+                    //glm::vec3 direction = MATH::CosineWeightedHemisphereDirection(scene.light_sources[0]->direction); // <-- seems to cause weird floor pattern?
+                    glm::vec3 direction = glm::linearRand(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                    Ray ray(origin, direction);
+                    glm::vec3 radiance = glm::dot(ray.direction, glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(1.0f); //Last term is light color (white), weighted by light direction
+                    //glm::vec3 radiance = glm::vec3(1.0f);
 
+                    for (int bounce = 0; bounce < number_of_bounces; bounce++) {
 
-
-                        // determine intersection data
-                        glm::vec3 intersection = closest.position;
-                        glm::vec3 normal = closest.triangle->getNormal();
-                        //glm::vec3 reflection = MATH::CosineWeightedHemisphereDirection(normal);;
-                        glm::vec3 reflection = normal;
-                        reflection = glm::rotateX(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
-                        reflection = glm::rotateY(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
-                        reflection = glm::rotateZ(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
-                        //glm::vec3 reflection = glm::linearRand(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-                        reflection = glm::normalize(reflection);
-
-                        radiance *= glm::dot(normal, reflection);
-                        radiance = glm::clamp(radiance, 0.0f, 1.0f);
-
-                        // Weaken ray intensity based on distance travelled
-                        float distance = glm::length(intersection - ray.origin);
-                        float distance_factor = 1.0f - glm::clamp(distance / 4.5f, 0.0f, 1.0f);
-                        radiance *= distance_factor;
-
-                        // Perform different operations on indirect light and direct light
-                        if (bounce > 0) { //Indirect lighting
+                        //bounce == 0 => direct lighting => shoot shadow photons
+                        if (ray.closestIntersection(scene, closest)) {
 
 
-                            thread_indirect_photons.emplace_back(radiance, intersection, ray.direction);
 
-                            float p = 1.0f- _COLOUR_PHOTON_DISCARD_CHANCE;//(radiance.r + radiance.g + radiance.b) * 0.99;
-                            float rand = (float)std::rand() / (float)RAND_MAX;
-                            if (rand > p) {
-                                break;
+                            // determine intersection data
+                            glm::vec3 intersection = closest.position;
+                            glm::vec3 normal = closest.triangle->getNormal();
+                            //glm::vec3 reflection = MATH::CosineWeightedHemisphereDirection(normal);;
+                            glm::vec3 reflection = normal;
+                            reflection = glm::rotateX(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                            reflection = glm::rotateY(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                            reflection = glm::rotateZ(reflection, glm::linearRand(-1.0f, 1.0f) * (float)PI / 2.0f);
+                            //glm::vec3 reflection = glm::linearRand(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                            reflection = glm::normalize(reflection);
+
+                            radiance *= glm::dot(normal, reflection);
+                            radiance = glm::clamp(radiance, 0.0f, 1.0f);
+
+                            // Weaken ray intensity based on distance travelled
+                            float distance = glm::length(intersection - ray.origin);
+                            float distance_factor = 1.0f - glm::clamp(distance / 3.0f, 0.0f, 1.0f);
+                            radiance *= distance_factor;
+
+                            // Perform different operations on indirect light and direct light
+                            if (bounce > 0) { //Indirect lighting
+
+
+                                thread_indirect_photons.emplace_back(radiance, intersection, ray.direction);
+
+                                float p = 1.0f - _COLOUR_PHOTON_DISCARD_CHANCE;//(radiance.r + radiance.g + radiance.b) * 0.99;
+                                float rand = (float)std::rand() / (float)RAND_MAX;
+                                if (rand > p) {
+                                    break;
+                                }
+                            } else { //Direct lighting
+                                thread_direct_photons.emplace_back(radiance, intersection, ray.direction);
+
+                                //Add shadows
+                                Ray shadow(intersection + 0.001f * ray.direction, ray.direction);
+                                while (shadow.closestIntersection(scene, shade)) {
+                                    thread_shadow_photons.emplace_back(glm::vec3(0), shade.position, ray.direction);
+                                    shadow.origin = shade.position + 0.001f * ray.direction;
+                                }
                             }
-                        } else { //Direct lighting
-                            thread_direct_photons.emplace_back(radiance, intersection, ray.direction);
 
-                            //Add shadows
-                            Ray shadow(intersection + 0.001f * ray.direction, ray.direction);
-                            while (shadow.closestIntersection(scene, shade)) {
-                                thread_shadow_photons.emplace_back(glm::vec3(0), shade.position, ray.direction);
-                                shadow.origin = shade.position + 0.001f * ray.direction;
+                            // Weighted control to make a number of photons do not transfer colour
+                            float rand_color = (float)rand() / (float)RAND_MAX;
+                            if (rand_color > 0.95) {
+                                radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance);
+                            } else {
+                                radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance * closest.triangle->color*_COLOUR_BLEED_INTENSITY);
                             }
-                        }
 
-                        // Weighted control to make a number of photons do not transfer colour
-                        float rand_color = (float)rand() / (float)RAND_MAX;
-                        if (rand_color > 0.95) {
-                            radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance);
+                            ray.origin = intersection + 0.001f*normal;
+                            ray.direction = reflection;
                         } else {
-                            radiance = glm::max(0.0f, glm::dot(glm::normalize(-ray.direction), glm::normalize(normal))) * (radiance * closest.triangle->color*_COLOUR_BLEED_INTENSITY);
+                            break;
                         }
-
-                        ray.origin = intersection + 0.001f*normal;
-                        ray.direction = reflection;
-                    } else {
-                        break;
                     }
                 }
-            }
-        #pragma omp critical 
-            {
-                for (auto& p : thread_direct_photons) {
-                    direct_photons.emplace_back(p.color, p.position, p.direction);
-                }
-                for (auto& p : thread_indirect_photons) {
-                    indirect_photons.emplace_back(p.color, p.position, p.direction);
-                }
-                for (auto& p : thread_shadow_photons) {
-                    shadow_photons.emplace_back(p.color, p.position, p.direction);
+    #pragma omp critical 
+                {
+                    for (auto& p : thread_direct_photons) {
+                        direct_photons.emplace_back(p.color, p.position, p.direction);
+                    }
+                    for (auto& p : thread_indirect_photons) {
+                        indirect_photons.emplace_back(p.color, p.position, p.direction);
+                    }
+                    for (auto& p : thread_shadow_photons) {
+                        shadow_photons.emplace_back(p.color, p.position, p.direction);
+                    }
                 }
             }
         }
@@ -371,6 +387,19 @@ namespace photonmap {
                 caustic_photons.save("caustic_data.ptm");
             }
         }
+
+        bool save_indirect_data = false;
+        if (!load_indirect_map) {
+            std::cout << std::endl;
+            std::cout << "Would you like to save the indirect photon data?" << std::endl;
+            char c;
+            std::cin >> c;
+            std::cout << std::endl;
+            if (c == 'y' || c == 'Y') {
+                indirect_photons.save("indirect_photon_data.ptm");
+            }
+        }
+
         
 	}
 
