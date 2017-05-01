@@ -27,7 +27,7 @@
 #define PREVIEW_RENDER true
 
 #define _DOF_ENABLE_ false
-#define _AA_ENABLE true
+#define _AA_ENABLE false
 #define _AA_FACTOR 25.0f
 #define _TEXTURE_ENABLE_ false
 #define _GLOBAL_ILLUMINATION_ENABLE_ true
@@ -36,7 +36,8 @@
 #define _SOFT_SHADOWS true
 #define _SOFT_SHADOW_SAMPLES 20
 
-#define NUM_THREADS 4
+#define NUM_THREADS 8
+#define USE_DRAGON_MODEL 0
 
 
 // Quality control
@@ -106,14 +107,20 @@ int main(int argc, char** argv) {
     metal_material->materialSetTypeReflective(0.75f, 0.50f);
 
 
+
+
     // Load models
     
 	std::vector<Triangle> model = std::vector<Triangle>();
 	LoadTestModel(model);
     model::Model cornell_box(model);
     cornell_box.setUseOptimisationStructure(false);
-    
 
+    // Prepare scene
+    model::Scene scene;
+    scene.addModel(&cornell_box);
+    
+#if USE_DRAGON_MODEL==1
 	model::Model m("dragon.obj");
     //m.setUseOptimisationStructure(false);
     // Assign the glass material to the model
@@ -125,11 +132,10 @@ int main(int argc, char** argv) {
         t.n2 = -t.n2;*/
     }
     m.generateOctree();
-
-	model::Scene scene;
-    
-    scene.addModel(&cornell_box);
     scene.addModel(&m); // Dragon
+#endif
+
+   
 	
 	model::LightSource basic_light(glm::vec3(0.0, -0.85, 0.0), glm::vec3(0, 1.0, 0), 8);
 	scene.addLight(basic_light);
@@ -171,6 +177,9 @@ int main(int argc, char** argv) {
     std::cout << "-- PRESS SPACE TO BEGIN RENDER --" << std::endl;
 	Uint8* keystate = SDL_GetKeyState(0);
 	bool run = true;
+
+    int photonmap = 0;
+
 	while (/*keystate[SDLK_SPACE]*/run &&  NoQuitMessageSDL()) {
 
 		keystate = SDL_GetKeyState(0);
@@ -202,6 +211,12 @@ int main(int argc, char** argv) {
 			run = false;
 			continue;
 		}
+        if (keystate[SDLK_1]) {
+            photonmap = 0;
+        }
+        if (keystate[SDLK_2]) {
+            photonmap = 1;
+        }
 
 		// Render photons
 		if (SDL_MUSTLOCK(screen))
@@ -213,7 +228,10 @@ int main(int argc, char** argv) {
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getDirectPhotons();
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getIndirectPhotons();
 		//std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getShadowPhotons(); SDL_FillRect(screen, NULL, 0xFFFFFF);
-        std::vector<photonmap::PhotonInfo>& photoninfo = photon_mapper.getCausticPhotons();
+
+
+        std::vector<photonmap::PhotonInfo>& photoninfo = (photonmap == 0)? photon_mapper.getIndirectPhotons() :photon_mapper.getCausticPhotons();
+
 
 		//printf("\n \nPHOTONS: %d \n", photoninfo.size());
 		int count = 0;
